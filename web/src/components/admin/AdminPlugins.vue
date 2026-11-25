@@ -1,0 +1,196 @@
+<template>
+  <section class="page-content plugin-admin">
+    <header class="plugin-hero">
+      <div><span class="plugin-eyebrow"><Icon name="grid" :size="14" /> APPS</span><h2>{{ tr('store') }}</h2><p>{{ tr('lead') }}</p><div class="plugin-metrics"><span><b>{{ model.catalog.value?.entries.length ?? '—' }}</b>{{ text('available') }}</span><i></i><span><b>{{ model.installed.value.length }}</b>{{ tr('installed') }}</span><i></i><span><b>{{ enabledCount }}</b>{{ text('active') }}</span></div></div>
+      <div class="plugin-hero-art" aria-hidden="true"><i></i><i></i><i></i><i></i><b>＋</b></div>
+    </header>
+    <details class="plugin-runtime-settings"><summary><Icon name="server" :size="16" />{{ tr('runtime') }}<span class="plugin-status" :class="{active:model.runtime.value?.available}"><i></i>{{ tr(model.runtime.value?.available?'running':'stopped') }} · {{ model.runtime.value?.port ?? '—' }}</span></summary><p>{{ tr('originHelp') }}</p><form @submit.prevent="model.saveRuntime"><label>{{ tr('origin') }}<input v-model="model.origin.value" type="url" placeholder="https://apps.example.com" :disabled="model.busy.value" /></label><button class="plugin-button primary" type="submit" :disabled="model.busy.value || !model.runtime.value">{{ tr('save') }}</button></form></details>
+    <div class="plugin-toolbar">
+      <nav class="plugin-tabs" :aria-label="tr('store')"><button type="button" :aria-current="tab==='store'?'page':undefined" @click="tab='store'"><Icon name="compass" :size="16" />{{ text('discover') }}</button><button type="button" :aria-current="tab==='installed'?'page':undefined" @click="tab='installed'"><Icon name="grid" :size="16" />{{ tr('installed') }}<span>{{ model.installed.value.length }}</span></button></nav>
+      <div class="plugin-tools"><label class="plugin-search"><Icon name="search" :size="16" /><input v-model="search" type="search" :aria-label="text('search')" :placeholder="text('search')" /></label><button class="plugin-refresh" type="button" :disabled="model.busy.value" :title="tr('refresh')" :aria-label="tr('refresh')" @click="model.load"><Icon name="refresh" :size="17" /></button></div>
+    </div>
+    <p v-if="model.error.value" class="plugin-feedback is-error" role="alert"><Icon name="info" :size="17" />{{ describeError(model.error.value) }}</p>
+    <p v-if="tab==='store' && model.catalogError.value" class="plugin-feedback is-error" role="alert"><Icon name="info" :size="17" />{{ tr('catalogError') }} · {{ model.catalogError.value }}</p>
+    <p v-if="notice" class="plugin-feedback" role="status"><Icon name="check" :size="17" />{{ notice }}</p>
+    <div class="plugin-section-heading"><div><h3>{{ tab==='store'?text('discover'):tr('installed') }}</h3><span v-if="tab==='store'" class="plugin-source"><i></i>{{ text('source') }}</span></div><a v-if="tab==='store'" :href="PLUGIN_STORE_REPOSITORY" target="_blank" rel="noopener noreferrer"><Icon name="github" :size="16" />GitHub ↗</a><button v-else class="plugin-button" type="button" :disabled="model.busy.value" @click="fileInput?.click()"><Icon name="share" :size="15" />{{ tr('upload') }}</button></div>
+    <input ref="fileInput" class="plugin-file-input" type="file" accept=".wplugin,application/json" @change="upload" />
+    <p v-if="model.busy.value" class="plugin-loading" role="status"><span class="spinner small"></span>{{ tr('loading') }}</p>
+    <div v-if="tab==='store'" class="plugin-store-grid">
+      <article v-for="entry in catalogEntries" :key="entry.id" class="plugin-market-card">
+        <div class="plugin-card-visual"><div class="plugin-card-symbol"><Icon name="grid" :size="38" /></div><span>API {{ entry.manifest?.apiVersion ?? '—' }}</span><i aria-hidden="true"></i></div>
+        <div class="plugin-card-body"><div class="plugin-card-title"><h4>{{ entry.manifest?.name ?? entry.id }}</h4><small>v{{ entry.manifest?.version ?? '—' }}</small></div><p class="plugin-author">{{ entry.manifest?.author }} · {{ entry.manifest?.license }}</p><p class="plugin-description">{{ entry.manifest?.description }}</p><div class="plugin-tags"><span v-for="scope in entry.manifest?.scopes" :key="scope"><Icon name="server" :size="12" />{{ tr(scope) }}</span></div><div class="plugin-permissions"><span>{{ tr('client') }}</span><span v-if="entry.manifest?.server">{{ tr('backend') }}</span></div><p v-if="entry.error" class="is-error">{{ entry.error }}</p></div>
+        <footer><a :href="entry.repository" target="_blank" rel="noopener noreferrer" :aria-label="`${tr('viewRepository')} · ${entry.manifest?.name ?? entry.id}`"><Icon name="github" :size="16" />{{ tr('viewRepository') }} ↗</a><button class="plugin-button primary" type="button" :disabled="model.busy.value || !entry.manifest || !!entry.error" @click="install(entry)"><Icon name="download" :size="15" />{{ installLabel(entry) }}</button></footer>
+      </article>
+    </div>
+    <div v-else class="plugin-installed-list">
+      <article v-for="plugin in installedEntries" :key="plugin.manifest.id" class="plugin-installed-card">
+        <header><div class="plugin-installed-icon"><Icon name="grid" :size="23" /></div><div class="plugin-installed-name"><h4>{{ plugin.manifest.name }}</h4><p>v{{ plugin.manifest.version }} · {{ plugin.manifest.author }}</p></div><span class="plugin-status" :class="{active:plugin.settings.enabled}"><i></i>{{ tr(plugin.runtime?.state ?? 'disabled') }}</span></header>
+        <p class="plugin-description">{{ plugin.manifest.description }}</p><p v-if="plugin.runtime?.error" class="is-error" role="alert">{{ plugin.manifest.id === musicBotId && plugin.runtime.error === 'PLUGIN_START_FAILED' && !plugin.settings.hasServerConfig ? tr('musicBotConfigHelp') : plugin.runtime.error }}</p><div class="plugin-installed-meta"><span><Icon name="server" :size="13" />{{ tr(plugin.settings.scope) }}</span><span>{{ plugin.manifest.license }}</span><span>API {{ plugin.manifest.apiVersion }}</span><a v-if="repository(plugin.manifest.id)" :href="repository(plugin.manifest.id)" target="_blank" rel="noopener noreferrer"><Icon name="github" :size="14" />{{ tr('viewRepository') }} ↗</a></div>
+        <details :open="expanded===plugin.manifest.id" @toggle="onToggle($event,plugin.manifest.id)"><summary><Icon name="settings" :size="16" />{{ text('configure') }}<Icon class="plugin-chevron" name="chevron-down" :size="15" /></summary><fieldset :disabled="model.busy.value">
+          <div class="plugin-enable-row"><div><strong>{{ tr('enabled') }}</strong><p>{{ text('review') }}</p></div><label class="plugin-switch"><input v-model="model.drafts[plugin.manifest.id].enabled" type="checkbox" :aria-label="tr('enabled')" /><span></span></label></div>
+          <label class="plugin-trust"><input v-model="model.drafts[plugin.manifest.id].trusted" type="checkbox" />{{ tr('trust') }}</label><p class="plugin-trust-note">{{ tr('enableNote') }}</p>
+          <label class="plugin-trust"><input v-model="model.drafts[plugin.manifest.id].toolbarPinned" type="checkbox" />{{ tr('toolbarPin') }}</label>
+          <label>{{ tr('scope') }}<select v-model="model.drafts[plugin.manifest.id].scope"><option v-for="scope in plugin.manifest.scopes" :key="scope" :value="scope">{{ tr(scope) }}</option></select></label>
+          <label v-if="model.drafts[plugin.manifest.id].scope==='server'">{{ tr('targets') }}<textarea v-model="model.drafts[plugin.manifest.id].targets" rows="3" maxlength="15000" placeholder="voice.example.com:9987"></textarea></label>
+          <details class="plugin-advanced">
+            <summary>{{ text('advanced') }}<Icon name="chevron-down" :size="14" /></summary>
+            <template v-if="plugin.manifest.id === musicBotId && plugin.manifest.server">
+              <p class="plugin-config-help">{{ tr('musicBotConfigHelp') }}</p>
+              <a class="plugin-setup-link" :href="`${musicBotRepository}#配置`" target="_blank" rel="noopener noreferrer">{{ tr('setupGuide') }} ↗</a>
+              <label>{{ tr('privateConfig') }}
+                <small>{{ tr(plugin.settings.hasServerConfig ? 'secretSaved' : 'secretEmpty') }}</small>
+                <select v-model="model.drafts[plugin.manifest.id].serverConfigAction">
+                  <option value="keep">{{ tr('keep') }}</option><option value="replace">{{ tr('replace') }}</option><option value="remove">{{ tr('erase') }}</option>
+                </select>
+              </label>
+              <div v-if="model.drafts[plugin.manifest.id].serverConfigAction === 'replace'" class="plugin-config-grid">
+                <div v-for="field in musicBotPrivateFields" :key="field.key" class="plugin-config-field">
+                  <div v-if="field.type === 'json'" role="group" :aria-label="field.key">
+                    <p>{{ field.key }}</p>
+                    <PluginConfigValue fixed string-children :labels="valueLabels" :model-value="model.musicBotCollection(plugin.manifest.id, 'privateFields', field.key)" @update:model-value="model.setMusicBotCollection(plugin.manifest.id, 'privateFields', field.key, $event)" />
+                  </div>
+                  <label v-else>{{ field.key }}{{ field.key === 'apiKey' ? ' *' : '' }}
+                    <input v-model="model.drafts[plugin.manifest.id].privateFields[field.key]" :type="field.type" :placeholder="field.placeholder" :aria-required="field.key === 'apiKey'" :autocomplete="field.type === 'password' ? 'new-password' : 'off'" spellcheck="false" />
+                  </label>
+                </div>
+              </div>
+              <p class="plugin-config-help">{{ tr('config') }}</p>
+              <div class="plugin-config-grid">
+                <div v-for="field in musicBotPublicFields" :key="field.key" class="plugin-config-field">
+                  <div v-if="field.type === 'json'" role="group" :aria-label="field.key">
+                    <p>{{ field.key }}</p>
+                    <PluginConfigValue fixed string-children :labels="valueLabels" :model-value="model.musicBotCollection(plugin.manifest.id, 'publicFields', field.key)" @update:model-value="model.setMusicBotCollection(plugin.manifest.id, 'publicFields', field.key, $event)" />
+                  </div>
+                  <label v-else>{{ field.key }}
+                    <select v-if="field.choices" v-model="model.drafts[plugin.manifest.id].publicFields[field.key]">
+                      <option value="">{{ tr('configDefault') }} ({{ field.placeholder }})</option>
+                      <option v-for="choice in field.choices" :key="choice" :value="choice">{{ choice }}</option>
+                    </select>
+                    <input v-else v-model="model.drafts[plugin.manifest.id].publicFields[field.key]" :type="field.type" :placeholder="field.placeholder" spellcheck="false" />
+                  </label>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+            <div v-if="plugin.manifest.id === fileTransferId" class="plugin-config-group">
+              <label>{{ tr('maxFileSize') }}
+                <input v-model="model.drafts[plugin.manifest.id].publicFields.maxFileMiB" type="number" min="1" max="2048" placeholder="256" />
+              </label>
+              <p>{{ tr('fileTransferIceHelp') }}</p>
+            </div>
+            <div v-else-if="plugin.manifest.id === watchTogetherId" class="plugin-config-group">
+              <label>{{ tr('playbackControl') }}
+                <select v-model="model.drafts[plugin.manifest.id].publicFields.control">
+                  <option value="">{{ tr('configDefault') }} · {{ tr('controlEveryone') }}</option>
+                  <option value="everyone">{{ tr('controlEveryone') }}</option>
+                  <option value="host">{{ tr('controlHost') }}</option>
+                </select>
+              </label>
+              <p>{{ tr('watchTogetherConfigHelp') }}</p>
+            </div>
+            <div v-else class="plugin-config-group" role="group" :aria-label="tr('config')">
+              <p>{{ tr('config') }}</p>
+              <PluginConfigValue :labels="valueLabels" :model-value="model.configValue(plugin.manifest.id, 'config')" @update:model-value="model.setConfigValue(plugin.manifest.id, 'config', $event)" />
+            </div>
+            <template v-if="plugin.manifest.server && plugin.manifest.id !== watchTogetherId">
+              <p v-if="plugin.manifest.id !== fileTransferId" class="plugin-config-help">
+                {{ tr('privateConfigHelp') }}
+              </p>
+              <label>{{ tr('privateConfig') }}
+                <small>{{ tr(plugin.settings.hasServerConfig?'secretSaved':'secretEmpty') }}</small>
+                <small v-if="plugin.manifest.id === fileTransferId">{{ tr('replaceIceHelp') }}</small>
+                <select v-model="model.drafts[plugin.manifest.id].serverConfigAction">
+                  <option value="keep">{{ tr('keep') }}</option><option value="replace">{{ tr('replace') }}</option><option value="remove">{{ tr('erase') }}</option>
+                </select>
+              </label>
+              <div v-if="model.drafts[plugin.manifest.id].serverConfigAction==='replace' && plugin.manifest.id === fileTransferId" class="plugin-config-group">
+                <label class="plugin-trust"><input v-model="model.drafts[plugin.manifest.id].defaultIce" type="checkbox" />{{ tr('defaultIce') }}</label>
+                <template v-if="!model.drafts[plugin.manifest.id].defaultIce">
+                  <div v-for="(server, index) in model.drafts[plugin.manifest.id].iceServers" :key="index" class="plugin-config-grid">
+                    <label>{{ tr('iceUrls') }}<input v-model="server.urls" type="text" placeholder="turn:turn.example.com:3478" /></label>
+                    <label>{{ tr('iceUsername') }}<input v-model="server.username" type="text" autocomplete="off" /></label>
+                    <label>{{ tr('iceCredential') }}<input v-model="server.credential" type="password" autocomplete="new-password" /></label>
+                    <button type="button" class="plugin-button" @click="model.drafts[plugin.manifest.id].iceServers.splice(index, 1)">{{ tr('remove') }}</button>
+                  </div>
+                  <button type="button" class="plugin-button" @click="model.drafts[plugin.manifest.id].iceServers.push({urls:'',username:'',credential:''})">{{ tr('addIce') }}</button>
+                </template>
+              </div>
+              <div v-else-if="model.drafts[plugin.manifest.id].serverConfigAction==='replace'" class="plugin-config-group" role="group" :aria-label="tr('privateConfig')">
+                <PluginConfigValue secret :labels="valueLabels" :model-value="model.configValue(plugin.manifest.id, 'serverConfig')" @update:model-value="model.setConfigValue(plugin.manifest.id, 'serverConfig', $event)" />
+              </div>
+            </template>
+            </template>
+          </details>
+          <div class="plugin-settings-actions"><button v-if="plugin.manifest.server" class="plugin-button" type="button" :disabled="!plugin.settings.enabled" @click="model.restart(plugin)">{{ tr('restart') }}</button><button class="plugin-button danger" type="button" @click="remove(plugin)"><Icon name="trash" :size="14" />{{ tr('remove') }}</button><button class="plugin-button primary" type="button" @click="save(plugin)"><Icon name="check" :size="15" />{{ tr('save') }}</button></div>
+        </fieldset></details>
+      </article>
+    </div>
+    <div v-if="!model.busy.value && !(tab==='store'?catalogEntries.length:installedEntries.length)" class="plugin-empty"><Icon name="grid" :size="32" /><h4>{{ search?text('empty'):tr('empty') }}</h4></div>
+    <details class="plugin-scope-help"><summary><Icon name="info" :size="16" />{{ text('scopeHelp') }}<Icon name="chevron-down" :size="14" /></summary><p>{{ tr('note') }}</p><p>{{ tr('enableNote') }}</p></details>
+  </section>
+</template>
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import Icon from '../Icon.vue';
+import PluginConfigValue from './PluginConfigValue.vue';
+import type { SiteLanguage } from '../../../../src/site-copy.js';
+import { PLUGIN_STORE_REPOSITORY, type InstalledPlugin, type PluginStoreEntry, type PluginManifest } from '../../../../src/shared/plugins.js';
+import { fileTransferId, watchTogetherId, musicBotId, musicBotPrivateFields, musicBotPublicFields, musicBotRepository, type useAdminPlugins } from '../../composables/useAdminPlugins.js';
+import { pluginTranslations, type PluginTextKey } from '../../i18n/plugins.js';
+import { pluginStoreTranslations, type PluginStoreTextKey } from '../../i18n/plugin-store.js';
+const props=defineProps<{model:ReturnType<typeof useAdminPlugins>;language:SiteLanguage}>();
+const tr=(key:PluginTextKey)=>pluginTranslations[props.language][key],text=(key:PluginStoreTextKey)=>pluginStoreTranslations[props.language][key];
+const valueLabels=computed(()=>({type:tr('valueType'),key:tr('fieldKey'),value:tr('fieldValue'),add:tr('addField'),remove:tr('remove')}));
+function describeError(code:string) {
+  if(code==='TSMB_API_KEY_REQUIRED')return tr('musicBotConfigHelp');
+  if(code==='PLUGIN_FILE_LIMIT_INVALID')return tr('maxFileSize');
+  if(code==='PLUGIN_ICE_URL_INVALID')return tr('iceInvalid');
+  if(code==='PLUGIN_CHECKSUM')return tr('storeChecksum');
+  if(code==='PLUGIN_PACKAGE_MISMATCH')return tr('storeMismatch');
+  return `${tr('error')} (${code})`;
+}
+const tab=ref<'store'|'installed'>('store'),search=ref(''),expanded=ref(''),notice=ref(''),fileInput=ref<HTMLInputElement|null>(null);
+const enabledCount=computed(()=>props.model.installed.value.filter(p=>p.settings.enabled).length);
+const matches=(manifest:PluginManifest|null,id:string)=>[manifest?.name,manifest?.author,manifest?.description,id].join(' ').toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase());
+const catalogEntries=computed(()=>(props.model.catalog.value?.entries??[]).filter(e=>matches(e.manifest,e.id)));
+const installedEntries=computed(()=>props.model.installed.value.filter(p=>matches(p.manifest,p.manifest.id)));
+function repository(id:string){
+  if(id===musicBotId)return musicBotRepository;
+  return props.model.catalog.value?.entries.find(entry=>entry.id===id)?.repository;
+}
+function installLabel(entry:PluginStoreEntry){const local=props.model.installed.value.find(p=>p.manifest.id===entry.id);return !local?text('add'):local.manifest.version===entry.manifest?.version?text('reinstall'):text('update');}
+async function install(entry:PluginStoreEntry){notice.value='';await props.model.install(entry);if(!props.model.error.value){tab.value='installed';expanded.value=entry.id;notice.value=text('installedNotice');}}
+async function upload(event:Event){const input=event.target as HTMLInputElement,file=input.files?.[0];if(file){notice.value='';await props.model.upload(file);if(!props.model.error.value){tab.value='installed';notice.value=text('installedNotice');}}input.value='';}
+async function save(plugin:InstalledPlugin){notice.value='';await props.model.save(plugin);}
+function remove(plugin:InstalledPlugin){if(window.confirm(tr('removed'))){notice.value='';void props.model.remove(plugin);}}
+function onToggle(event:Event,id:string){if((event.target as HTMLDetailsElement).open)expanded.value=id;else if(expanded.value===id)expanded.value='';}
+</script>
+<style scoped>
+.plugin-admin .plugin-config-help{margin:0 0 12px;color:var(--admin-muted);font-size:12px;line-height:1.6}
+.plugin-setup-link,.plugin-installed-meta a{color:var(--admin-accent);display:inline-flex;align-items:center;gap:5px}
+.plugin-setup-link{margin-bottom:12px;font-size:12px}
+.plugin-config-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));column-gap:16px}
+.plugin-config-grid input,.plugin-config-group input{box-sizing:border-box;width:100%;min-width:0;padding:10px 12px;border:1px solid var(--admin-border);border-radius:8px;background:var(--admin-field);color:var(--admin-text);font-size:12px}
+.plugin-config-field,.plugin-config-group{font-size:12px;color:var(--admin-muted);min-width:0}
+.plugin-config-field [role=group],.plugin-config-group{display:grid;gap:8px;margin-bottom:12px}
+section.page-content.plugin-admin{display:grid;grid-template-columns:minmax(0,1fr);grid-auto-rows:max-content;align-content:start;gap:24px;color:var(--admin-text);min-width:0}
+.plugin-admin :is(h2,h3,h4,p){margin:0}.plugin-admin :is(button,input,select,textarea){font:inherit}.plugin-admin button{cursor:pointer}.plugin-admin button:disabled{opacity:.5;cursor:wait}
+.plugin-hero{position:relative;display:flex;align-items:center;justify-content:space-between;gap:28px;overflow:hidden;padding:32px;border:1px solid var(--admin-border);border-radius:20px;background:radial-gradient(ellipse at 100% 0,color-mix(in srgb,var(--admin-accent) 12%,transparent),transparent 65%),var(--admin-surface)}
+.plugin-hero>div:first-child{z-index:1;max-width:640px}.plugin-eyebrow{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:800;letter-spacing:.16em;color:var(--admin-accent);margin-bottom:14px}.plugin-hero h2{font-size:30px;letter-spacing:-.04em}.plugin-hero p{font-size:13px;line-height:1.8;color:var(--admin-muted);max-width:560px;margin-top:12px}
+.plugin-metrics{display:flex;align-items:center;gap:20px;margin-top:24px;flex-wrap:wrap}.plugin-metrics>span{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--admin-muted)}.plugin-metrics b{font-size:20px;color:var(--admin-text);font-variant-numeric:tabular-nums}.plugin-metrics>i{height:17px;width:1px;background:var(--admin-border)}
+.plugin-hero-art{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:10px;width:130px;flex:0 0 130px;transform:rotate(-8deg);margin:8px 12px}.plugin-hero-art i{aspect-ratio:1;border-radius:15px;border:1px solid color-mix(in srgb,var(--admin-accent) 22%,var(--admin-border));background:var(--admin-accent-soft);box-shadow:0 8px 18px #0001}.plugin-hero-art i:nth-child(2){transform:translate(10px,-10px);background:var(--admin-accent);opacity:.8}.plugin-hero-art i:nth-child(3){opacity:.5}.plugin-hero-art b{position:absolute;right:-15px;bottom:-12px;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;font-size:25px;background:var(--admin-surface);color:var(--admin-accent)}
+.plugin-toolbar,.plugin-tools,.plugin-tabs{display:flex;align-items:center;gap:12px;min-width:0}.plugin-toolbar{justify-content:space-between;flex-wrap:wrap}.plugin-tabs{gap:4px;padding:4px;background:var(--admin-raised);border:1px solid var(--admin-border);border-radius:12px}.plugin-tabs button{display:flex;align-items:center;gap:8px;min-height:40px;border:0;border-radius:8px;padding:9px 15px;background:transparent;color:var(--admin-muted);font-size:12px;font-weight:650}.plugin-tabs button[aria-current]{color:var(--admin-accent);background:var(--admin-surface);box-shadow:0 1px 5px #0001}.plugin-tabs button>span{min-width:18px;border-radius:5px;padding:0 5px;background:var(--admin-accent-soft);font-size:10px}
+.plugin-search{display:flex;gap:8px;align-items:center;padding:0 12px;border:1px solid var(--admin-border);border-radius:10px;background:var(--admin-surface);color:var(--admin-muted)}.plugin-search input{width:200px;min-width:0;border:0!important;outline:none;background:transparent!important;color:var(--admin-text);height:42px;font-size:12px;padding:0!important;box-shadow:none!important}.plugin-search:focus-within{outline:2px solid color-mix(in srgb,var(--admin-accent) 35%,transparent)}.plugin-refresh{display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid var(--admin-border);border-radius:10px;background:var(--admin-surface);color:var(--admin-muted)}
+.plugin-section-heading,.plugin-section-heading>div{display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap}.plugin-section-heading h3{font-size:15px}.plugin-section-heading a,.plugin-market-card footer a{display:flex;gap:7px;align-items:center;font-size:11px;color:var(--admin-muted);text-decoration:none}.plugin-source{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--admin-muted)}.plugin-source i,.plugin-status i{height:6px;width:6px;flex:none;border-radius:50%;background:#7c9790}.plugin-source i{background:var(--admin-accent)}
+.plugin-store-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:20px;align-items:start}.plugin-market-card{display:flex;flex-direction:column;max-width:460px;min-width:0;border:1px solid var(--admin-border);border-radius:16px;background:var(--admin-surface);overflow:hidden;transition:border-color .2s,transform .2s}.plugin-market-card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--admin-accent) 50%,var(--admin-border))}
+.plugin-card-visual{position:relative;display:grid;place-items:center;height:142px;overflow:hidden;background:linear-gradient(130deg,var(--admin-accent-soft),var(--admin-raised))}.plugin-card-symbol{display:grid;place-items:center;width:76px;height:76px;border:1px solid color-mix(in srgb,var(--admin-accent) 20%,var(--admin-border));background:var(--admin-surface);border-radius:21px;color:var(--admin-accent);transform:rotate(-8deg);box-shadow:0 8px 20px #0001;z-index:1}.plugin-card-visual>span{position:absolute;top:14px;right:14px;padding:4px 7px;border:1px solid var(--admin-border);border-radius:6px;font-size:9px;font-weight:700;background:var(--admin-surface);color:var(--admin-muted)}.plugin-card-visual>i{position:absolute;border:1px solid color-mix(in srgb,var(--admin-accent) 15%,transparent);border-radius:50%;width:260px;height:260px;left:-65px;top:-95px}.plugin-card-visual>i:after{content:'';position:absolute;inset:24px;border:inherit;border-radius:inherit}
+.plugin-card-body{padding:22px;display:grid;gap:12px}.plugin-card-title{display:flex;align-items:start;justify-content:space-between;gap:10px}.plugin-card-title h4{font-size:16px;line-height:1.4;letter-spacing:-.025em;overflow-wrap:anywhere}.plugin-card-title small{flex:none;font-size:10px;color:var(--admin-muted);padding-top:3px}.plugin-author{color:var(--admin-muted);font-size:10px}.plugin-description{font-size:12px;line-height:1.75;color:var(--admin-muted);overflow-wrap:anywhere}.plugin-tags,.plugin-permissions{display:flex;gap:7px;flex-wrap:wrap}.plugin-tags>span{display:inline-flex;align-items:center;gap:5px;padding:5px 7px;font-size:9px;border:1px solid var(--admin-border);border-radius:6px;color:var(--admin-muted)}.plugin-permissions>span{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--admin-accent)}.plugin-market-card footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 22px;border-top:1px solid var(--admin-border);background:var(--admin-raised)}
+.plugin-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;border:1px solid var(--admin-border);border-radius:8px;padding:9px 13px;font-size:11px;font-weight:650;color:var(--admin-text);background:var(--admin-surface)}.plugin-button.primary{border-color:transparent;color:var(--admin-surface);background:var(--admin-accent)}.plugin-button.danger{color:#c95c5c;background:transparent;border-color:transparent}.plugin-file-input{display:none}.plugin-feedback{display:flex;gap:10px;align-items:center;border:1px solid var(--admin-border);border-radius:10px;padding:12px 16px;color:var(--admin-accent);background:var(--admin-accent-soft);font-size:12px;overflow-wrap:anywhere}.plugin-admin .is-error{color:#cf6565}.plugin-loading{display:flex;gap:10px;align-items:center;color:var(--admin-muted);font-size:12px}
+.plugin-installed-list{display:grid;gap:16px}.plugin-installed-card{background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:16px;overflow:hidden;min-width:0}.plugin-installed-card>header{display:flex;align-items:center;gap:13px;padding:22px 24px 12px}.plugin-installed-icon{display:grid;place-items:center;flex:none;width:48px;height:48px;background:var(--admin-accent-soft);color:var(--admin-accent);border:1px solid var(--admin-border);border-radius:13px}.plugin-installed-name{flex:1;min-width:0}.plugin-installed-name h4{font-size:15px;overflow-wrap:anywhere}.plugin-installed-name p{color:var(--admin-muted);font-size:10px;margin-top:5px}.plugin-status{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:10px;border:1px solid var(--admin-border);border-radius:20px;color:var(--admin-muted);flex:none}.plugin-status.active{background:var(--admin-accent-soft);color:var(--admin-accent)}.plugin-status.active i{background:var(--admin-accent)}.plugin-installed-card>.plugin-description{padding:0 24px}.plugin-installed-meta{display:flex;gap:14px;flex-wrap:wrap;padding:14px 24px 20px;font-size:10px;color:var(--admin-muted)}.plugin-installed-meta>span{display:flex;align-items:center;gap:6px}
+.plugin-installed-card>details{border-top:1px solid var(--admin-border)}.plugin-installed-card>details>summary{display:flex;gap:8px;align-items:center;padding:15px 24px;list-style:none;cursor:pointer;color:var(--admin-muted);font-size:12px}.plugin-chevron{margin-left:auto;transition:transform .2s}details[open]>summary .plugin-chevron{transform:rotate(180deg)}summary::-webkit-details-marker{display:none}.plugin-installed-card fieldset{display:grid;gap:18px;min-width:0;margin:0;padding:6px 24px 24px;border:0}.plugin-enable-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;background:var(--admin-raised);border:1px solid var(--admin-border);border-radius:10px}.plugin-enable-row strong{font-size:12px}.plugin-enable-row p{font-size:10px;color:var(--admin-muted);margin-top:4px}
+.plugin-switch{position:relative;flex:none;display:block;width:36px;height:21px}.plugin-switch input{position:absolute;inset:0;opacity:0;margin:0;z-index:1;cursor:pointer;width:100%;height:100%}.plugin-switch>span{display:block;height:21px;border-radius:20px;background:var(--admin-border);transition:background .2s}.plugin-switch>span:after{content:'';display:block;position:absolute;left:3px;top:3px;width:15px;height:15px;border-radius:50%;background:white;transition:transform .2s}.plugin-switch input:checked+span{background:var(--admin-accent)}.plugin-switch input:checked+span:after{transform:translateX(15px)}.plugin-switch input:focus-visible+span{outline:3px solid color-mix(in srgb,var(--admin-accent) 35%,transparent);outline-offset:3px}
+.plugin-installed-card fieldset>label,.plugin-advanced label{display:grid;gap:8px;color:var(--admin-muted);font-size:11px}.plugin-installed-card textarea,.plugin-installed-card select{width:100%;min-width:0;max-width:100%;border:1px solid var(--admin-border);padding:10px 12px;border-radius:8px;background:var(--admin-field);color:var(--admin-text);font-size:12px}.plugin-installed-card textarea{resize:vertical;line-height:1.7}.plugin-advanced{border:1px solid var(--admin-border);border-radius:9px;padding:0 12px}.plugin-advanced summary{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--admin-muted);padding:12px 0;cursor:pointer}.plugin-advanced label{padding-bottom:12px}.plugin-advanced textarea{font-family:ui-monospace,monospace}.plugin-settings-actions{display:flex;justify-content:space-between;gap:12px;padding-top:4px}.plugin-scope-help{margin-top:8px;border-top:1px solid var(--admin-border);padding-top:20px;color:var(--admin-muted);font-size:11px}.plugin-scope-help summary{display:flex;gap:8px;align-items:center;cursor:pointer;width:fit-content}.plugin-scope-help p{line-height:1.8;margin-top:12px;max-width:850px}.plugin-empty{display:grid;justify-items:center;gap:16px;padding:60px 20px;color:var(--admin-muted);text-align:center;border:1px dashed var(--admin-border);border-radius:16px}.plugin-empty h4{font-size:14px}.plugin-admin :is(button,a,input,textarea,select,summary):focus-visible{outline:3px solid color-mix(in srgb,var(--admin-accent) 35%,transparent);outline-offset:3px}
+@media(max-width:1100px){.plugin-hero-art{width:100px;flex-basis:100px;margin-right:0}.plugin-hero{padding:26px}.plugin-tools{flex:1;justify-content:end}.plugin-search{flex:1;max-width:320px}.plugin-search input{width:100%}}
+@media(max-width:600px){.plugin-admin{gap:18px}.plugin-hero{padding:24px 20px;border-radius:16px}.plugin-hero h2{font-size:25px}.plugin-hero p{font-size:12px}.plugin-hero-art{position:absolute;width:110px;right:-28px;top:-35px;opacity:.12}.plugin-metrics{gap:12px}.plugin-metrics>span{gap:6px;font-size:10px}.plugin-metrics b{font-size:18px}.plugin-tabs,.plugin-tools{width:100%}.plugin-tabs button{flex:1;justify-content:center;padding:8px 10px}.plugin-search{max-width:none}.plugin-section-heading>div{gap:8px}.plugin-section-heading h3{font-size:14px}.plugin-source{font-size:9px}.plugin-card-body{padding:18px}.plugin-market-card{max-width:none}.plugin-installed-card>header{padding:18px 16px 12px;flex-wrap:wrap;gap:10px}.plugin-installed-icon{width:40px;height:40px}.plugin-installed-name h4{font-size:13px}.plugin-status{font-size:9px}.plugin-installed-card>.plugin-description,.plugin-installed-meta{padding-left:16px;padding-right:16px}.plugin-installed-card>details>summary{padding:14px 16px}.plugin-installed-card fieldset{padding:4px 16px 16px}.plugin-enable-row{padding:12px}}
+.plugin-runtime-settings{border:1px solid var(--admin-border);border-radius:14px;background:var(--admin-surface);padding:18px}.plugin-runtime-settings>summary{display:flex;align-items:center;gap:12px;cursor:pointer;font-weight:650}.plugin-runtime-settings>p{margin:16px 0;color:var(--admin-muted);font-size:12px;line-height:1.7}.plugin-runtime-settings form{display:flex;align-items:end;gap:14px;flex-wrap:wrap}.plugin-runtime-settings label{display:grid;flex:1;gap:8px;font-size:12px;min-width:min(100%,260px)}.plugin-runtime-settings input{width:100%;box-sizing:border-box;border:1px solid var(--admin-border);border-radius:9px;padding:10px;background:var(--admin-raised);color:var(--admin-text)}.plugin-trust{display:flex!important;align-items:start!important;gap:10px!important;font-weight:650}.plugin-trust input{width:auto!important;margin-top:3px;flex:none}.plugin-trust-note{font-size:12px;color:var(--admin-muted);line-height:1.7}.plugin-advanced label>small{color:var(--admin-muted);font-weight:400}.plugin-settings-actions{flex-wrap:wrap}
+</style>

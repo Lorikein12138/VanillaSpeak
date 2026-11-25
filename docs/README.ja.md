@@ -1,0 +1,470 @@
+<a id="readme-top"></a>
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/assets/webspeak-logo.png" alt="WebSpeak" width="88" />
+  <h1>WebSpeak · 日本語</h1>
+  <p><strong>ブラウザーから、いつもの TeamSpeak へ。</strong></p>
+  <p><a href="../README.md">プロジェクトトップ</a> · <a href="./README.zh-CN.md">简体中文</a> · <a href="./README.en.md">English</a> · <a href="./README.de.md">Deutsch</a> · <a href="./README.ru.md">Русский</a></p>
+  <p>
+    <a href="../LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-0f766e?style=flat-square" alt="AGPL-3.0-only" /></a>
+  </p>
+</div>
+
+このページには上流 WebSpeak のリリースノートを掲載しています。ソースコードとローカルビルド手順は [VanillaSpeak の README](../README.md) を参照してください。
+
+WebSpeak はセルフホスト型の TeamSpeak 3 / TeamSpeak 6 ブラウザークライアント兼音声ゲートウェイです。ユーザーはブラウザーで音声、チャット、画面共有に参加でき、運営者は管理コンソールで接続先、アクセス方針、データを管理できます。
+
+安定版：[v0.3.2 更新内容](#latest-release-notes) · [上流 WebSpeak v0.3.2 の配布パッケージ](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) · スキンの復元、アプリライブラリの配置、プラグイン設定フォーム。
+
+
+
+[オンラインデモ](#demo) · [機能](#features) · [画面プレビュー](#screenshots) · [デプロイ](#deployment) · [管理](#administration) · [詳細設定](#advanced) · [スキンとプラグイン](#extensions) · [トラブル対処](#troubleshooting) · [更新履歴](#changelog)
+
+<a id="demo"></a>
+
+## オンラインデモ
+
+- [上海 · shanghai.webspeak.online](https://shanghai.webspeak.online)
+- [香港 · webspeak.online](https://webspeak.online)
+
+ホームと音声ワークスペースを体験できます。デモのネットワーク、負荷、稼働状況は変動します。
+
+<a id="features"></a>
+
+## 主な機能
+
+| 機能 | 内容 |
+| --- | --- |
+| リアルタイム音声 | Opus、任意の WebRTC、WebSocket へのフォールバック。ミュート、VOX、デバイス選択、ブラウザー側ノイズ抑制、メンバー別音量に対応。 |
+| チャンネルとメッセージ | チャンネルツリーと TeamSpeak 区切り、メンバー状態、移動、チャンネル・サーバー・個人チャット、Poke、ささやき、ローカル履歴。 |
+| 画面と音声の共有 | ブラウザー間および対応する TeamSpeak 6 クライアントとの画面共有。品質、ビットレート、統計を設定でき、デスクトップではウィンドウやタブの音声も共有可能。 |
+| ID と接続 | ID 保持、TS3 ID インポート・エクスポート、お気に入りと履歴、SRV・Nickname 名前解決、IPv4/IPv6、招待リンク。 |
+| インスタンス管理 | 固定・公開接続先、アクセス方針、招待、セッション、ログ、診断、バックアップ、任意の TeamSpeak 管理接続。 |
+| スキンと画面 | 昼・夜・KAAK、GitHub 経由の `.wskin` 配布、5 言語、レスポンシブ表示。 |
+| 分散音声 | ブラウザーが選択した中継の音声ゲートウェイに直接接続し、ページの URL は入口インスタンスのまま維持。 |
+| デプロイ方法 | Docker amd64/arm64、Windows x64・Linux x64/ARM64 サーバーパッケージ、Android プレビュー APK。 |
+
+### TeamSpeak のバージョン互換性
+
+音声接続には標準の TeamSpeak クライアントプロトコルを使い、Query の認証情報は不要です。任意の TS 管理機能では、別途 WebQuery / ServerQuery の認証情報を使用します。
+
+- **TeamSpeak 3**: 先頭の `3.x` バージョンを使ってプロトコルを判定します。すべての旧バージョンを個別に検証しているわけではないため、古いサーバーは実際の環境で確認してください。
+- **TeamSpeak 6**: 対応しています。TeamSpeak 6 ネイティブクライアントとの画面共有も可能です。
+- **自動検出**: ゲートウェイはサーバーの `version` 応答を読み取り、接続診断に判定結果を記録します。
+- ゲートウェイは上流 SDK `1.0.0-beta.23` の [`@honeybbq/teamspeak`](https://github.com/HoneyBBQ/teamspeak-js) を使用し、WebSpeak は TeamSpeak 3 と 6 を対象とします。
+
+<a id="screenshots"></a>
+
+## 画面プレビュー
+
+![WebSpeak · 音声ワークスペース](https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/screenshots/webspeak-ja.png)
+
+<details>
+<summary>ホーム、オーディオ設定、メンバーメニューを表示</summary>
+
+### ホーム
+
+![WebSpeak · ホーム](https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/screenshots/webspeak-ja-home.png)
+
+### オーディオ設定
+
+![WebSpeak · オーディオ設定](https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/screenshots/webspeak-ja-audio.png)
+
+### メンバーメニュー
+
+![WebSpeak · メンバーメニュー](https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/screenshots/webspeak-ja-menu.png)
+
+</details>
+
+<a id="deployment"></a>
+
+## デプロイと初期設定
+
+Compose は `network_mode: host` を使う Linux Docker ホスト向けの構成です。Windows サーバーには Release パッケージを使用してください。
+
+| 方法 | 用途 |
+| --- | --- |
+| Docker Compose | 常時稼働サーバーと簡単な更新 |
+| Release パッケージ | Node.js やビルドツールを使わない起動 |
+| ソースから | 開発やカスタマイズ |
+
+### Docker Compose
+
+```bash
+git clone --depth 1 https://github.com/Lorikein12138/VanillaSpeak.git
+cd VanillaSpeak
+docker compose up -d --build
+```
+
+起動後に `http://<your-host>:3040/admin` を開き、`admin` / `admin` でログインして直ちにパスワードを変更し、TeamSpeak を設定します。データは `webspeak-data` volume に保存されます。データベースを消さない場合は `docker compose down -v` を実行しないでください。
+
+```bash
+docker compose ps
+docker compose logs -f webspeak
+```
+
+データを保持して更新：
+
+```bash
+git pull --ff-only
+docker compose up -d --build
+```
+
+### Release パッケージ
+
+[上流 WebSpeak v0.3.2 の配布パッケージ](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) から `windows-x64.zip`、`linux-x64.tar.gz`、`linux-arm64.tar.gz` のいずれかを取得し、同梱ランチャーを実行します。Docker は amd64/arm64 に対応します。`arm64-v8a`、`armeabi-v7a`、`x86_64` の Android APK もあります。APK は手動インストールとテスト向けのデバッグ署名で、Google Play 用ではありません。実機 TeamSpeak 音声は未検証です。
+
+### ソースから
+
+```bash
+git clone https://github.com/Lorikein12138/VanillaSpeak.git
+cd VanillaSpeak
+npm ci --ignore-scripts
+npm rebuild @discordjs/opus --foreground-scripts
+npm --prefix web ci
+npm run web:build
+npm run build
+npm start
+```
+
+ビルドには Node.js `>=22.12`、Python、Make、C/C++ コンパイラーが必要です。
+
+### 初期設定
+
+1. `http://<your-host>:3040/admin` を開きます。
+2. `admin` / `admin` でログインし、直ちに 12 文字以上の新しいパスワードに変更します。
+3. **サーバー**で `voice.example.com#9987` などの接続先とアクセスモードを設定します。
+4. 公開時は HTTPS を設定し、WebRTC 有効時は指定した UDP 範囲全体を許可します。
+
+### HTTPS とデータ保持
+
+公開ページと WebSocket は HTTPS で提供してください。例えば、自分のドメインをホストに向け、Caddy から WebSpeak へ転送します。
+
+```caddyfile
+webspeak.example.com {
+  reverse_proxy 127.0.0.1:3040
+}
+```
+
+例のドメインは自分のものに置き換えてください。リバースプロキシや Tunnel でページが開けても、WebRTC の UDP が到達可能とは限りません。[詳細設定](#advanced)を確認してください。パッケージとソースは `data/`、Docker は `webspeak-data` volume を使用します。移行・バックアップ時は `webspeak.db` と対応する `master.key` を一緒に保存します。
+
+<a id="administration"></a>
+
+## 管理コンソール
+
+`/admin` で接続先、アクセス、WebRTC、中継、招待、アクティブセッション、ログ、バックアップを管理します。スキンストアは `/admin/skins`、機能プラグインストアは `/admin/plugins` です。
+
+### 任意の TeamSpeak 管理
+
+WebSpeak 管理画面と音声接続は、この機能に依存しません。固定サーバーモードで `/admin/ts-admin` を開き、TS 管理用の接続を設定します。
+
+1. TS サーバーで WebQuery を有効にし、権限のある TS 管理者に API キーを作成してもらいます。WebQuery の HTTP/HTTPS URL とキーを入力します。WebSpeak のサイトではなく、TS Query サービスの URL です。TS3（3.12 以降）と TS6 に対応します。
+2. 仮想サーバー ID `0` は固定接続先の音声ポートから選択します。制限付きキーでは許可された ID を入力してください。読み取りキーでは閲覧ができ、変更には書き込み可能なスコープと対応する TS 権限が必要です。
+3. ServerQuery SSH、または TS3 の ServerQuery TCP も選べます。Query ホスト（空欄は固定接続先）、ポート、ユーザー名、パスワードを入力し、SSH では信頼できるホストキーのフィンガープリントも指定します。OS への SSH ログインではありません。TCP は暗号化されないため信頼できるネットワークで使用します。HTTPS 証明書はゲートウェイで信頼されている必要があります。
+4. 保存して接続または更新します。サーバー設定、チャンネル管理、メンバーの移動・退出・ID による BAN、グループ割り当て、BAN 解除に対応します。操作には確認が必要で、TS が権限を検証します。リストは手動更新します。
+
+認証情報はサーバーで暗号化され、API から返されません。データベースと `master.key` を一緒にバックアップしてください。管理接続の失敗は WebSpeak 管理画面や音声に影響しません。UID による BAN で同じゲートウェイ IP を使う他のユーザーへの影響を避けます。
+
+<a id="advanced"></a>
+
+## 詳細設定
+
+### WebRTC
+
+**管理コンソール → サーバー → 詳細設定** で有効にします。無効の状態で UDP ポート範囲（初期値 `40000–40099`）を設定し、ファイアウォールで許可して保存してください。有効中は範囲がロックされ、新しい接続で WebRTC を使用します。非対応のブラウザは互換トランスポートに戻ります。公開サイトでは HTTPS が必要です。
+
+### リバースプロキシ・TCP Tunnel 経由の音声 WebRTC
+
+**サーバー → 詳細設定** の**公開メディアアドレス**には、UDP で到達可能な音声ゲートウェイの IP またはドメインを入力します。スキーム、パス、ポートは含めません。ページのリクエストから推測する接続先より優先され、プロキシのドメインが音声にも到達可能とは限りません。
+
+**IPv6 候補**は任意で、IPv4 も維持します。IPv6 の経路とファイアウォール許可が必要です。**音声 STUN** に `stun:turn.teamspeak.com:3478` を設定すると、ブラウザーとゲートウェイが同じサービスを使います。空欄では従来どおり、ゲートウェイのライブラリ内蔵 STUN を使い、ブラウザーには設定しません。IPv4 で到達可能な UDP STUN ドメイン・IPv4 アドレスに対応し、IPv6 リテラルや TURN 認証情報は指定できません。
+
+保存後に再接続してください。UDP 範囲全体を許可し、固定ポート転送では番号を維持します。STUN はアドレスを検出するだけで音声を中継しません。利用可能な UDP/IPv6 経路のない TCP Tunnel だけでは、互換転送に戻ります。
+
+### 画面共有の ICE 候補
+
+画面共有のメディアは引き続きブラウザ間の直接接続を優先し、WebSpeak はシグナリングだけを中継します。初期状態では TeamSpeak の公開 STUN サービスで外部候補を検出します。STUN はメディアを運びません。認可済みの外部 TURN を使う場合は、起動前に `WEBSPEAK_SCREEN_SHARE_ICE_SERVERS` を JSON 配列で設定できます。
+
+```json
+[{"urls":"stun:turn.teamspeak.com:3478"},{"urls":"turns:turn.example.com:5349","username":"<username>","credential":"<credential>"}]
+```
+
+TURN を設定した場合、メディアは外部 TURN サービスを経由することがありますが、WebSpeak ゲートウェイは経由しません。未設定時は直接接続と STUN のみを使用します。
+
+### クロスプラットフォーム P2P 画面共有
+
+ブラウザユーザーと TeamSpeak 6 ネイティブクライアントは、互いの画面共有を検出・開始・視聴できます。ブラウザ間、およびブラウザとネイティブクライアント間の画面メディアは、可能な限り WebRTC/ICE の直接接続で送信されます。WebSpeak はセッション認証、共有状態、SDP/ICE シグナリングを担当しますが、画面メディア自体は転送しません。画面には配信中の状態と視聴者数が表示され、音量、全画面、終了を操作できます。取得設定は最大 1080p / 60 FPS に対応し、WebRTC 統計も確認できます。
+
+### 中継サーバー
+
+入口ゲートウェイが署名付きの一度限りのチケットを発行し、ブラウザーは中継の音声ゲートウェイに直接接続します。中継が TeamSpeak に接続し、ページの URL はそのままです。中継ノードはホームや管理コンソールを提供しません。
+
+<details>
+<summary>中継の起動と設定</summary>
+
+```bash
+docker build --tag vanillaspeak:local .
+docker run -d --name webspeak-relay --restart unless-stopped --network host \
+  -e WEBSPEAK_MODE=relay \
+  -e WEBSPEAK_RELAY_TOKEN='replace-with-a-long-random-token' \
+  -e WEBSPEAK_RELAY_PORT='39087' \
+  -e WEBSPEAK_RELAY_WEBRTC_PUBLIC_HOST='relay.example.com' \
+  vanillaspeak:local
+```
+
+共通トークンはランダムな 16 文字以上にします。音声ゲートウェイは `127.0.0.1:3041` で待ち受けるため、Caddy などで HTTPS/WSS ドメインから転送します。
+
+```caddyfile
+relay.example.com {
+  reverse_proxy 127.0.0.1:3041
+}
+```
+
+入口側の**サーバー → 中継**で、名前、UDP 接続先 `relay.example.com#39087`、音声接続先 `https://relay.example.com`、同じトークンを設定して保存します。ユーザーは直接接続か中継を選べます。UDP `39087` と WebRTC の `40000–40099` を許可してください。公開メディアアドレスは HTTP プロキシではなく、中継に直接到達できる必要があります。
+
+ソースや Release パッケージでも同じ環境変数を指定します。ビルド後は `node dist/index.js`、パッケージでは `./runtime/node ./dist/index.js`（Windows：`.\runtime\node.exe .\dist\index.js`）で起動します。
+
+</details>
+
+### 依存ライブラリ
+
+中継は WebSpeak に組み込まれ、Node.js 標準ライブラリを使います。WebRTC は [werift](https://github.com/shinyoshiaki/werift-webrtc) `0.24.4`、TeamSpeak は上流 [HoneyBBQ/teamspeak-js](https://github.com/HoneyBBQ/teamspeak-js) の `@honeybbq/teamspeak@1.0.0-beta.23` を使用し、fork のビルドは不要です。
+
+<a id="extensions"></a>
+
+## スキンと機能プラグイン
+
+### スキンパッケージ `.wskin`
+
+スキンは外観、配置、付属ウィジェットを扱います。管理者がインストール、有効化、デフォルト選択を行い、開発者は WebSpeak のソースを変更せず公開 API で制作します。
+
+[開発ガイド](./SKIN_DEVELOPMENT.md) · [Agent Skill](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/blob/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/.agents/skills/webspeak-skin-development/SKILL.md) · [スキン一覧](https://github.com/Huddle-Up-Forge/webspeak-skins) · [Discord Voice サンプル](https://github.com/Huddle-Up-Forge/webspeak-skin-discord-voice)
+
+### 機能プラグイン `.wplugin`
+
+機能プラグインは標準ブラウザー機能と任意の Node バックエンドを使う独立アプリです。ルート、状態、共同作業は作者が実装します。管理者はコードと依存関係を審査して有効化し、更新後は再び信頼を確認します。TS サーバーまたはインスタンス範囲に対応し、別オリジンで動作します。API v2 は v0.3.0 から利用できます。
+
+[開発ガイド](./PLUGIN_DEVELOPMENT.md) · [Agent Skill](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/blob/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/.agents/skills/webspeak-plugin-development/SKILL.md) · [配布一覧とサンプル](https://github.com/Huddle-Up-Forge/webspeak-plugin)
+
+<a id="troubleshooting"></a>
+
+## トラブル対処
+
+| 症状 | 確認する内容 |
+| --- | --- |
+| WebRTC を有効にしてもフォールバックする | 音声状態のエラーコード、HTTPS、UDP 範囲全体、公開メディアアドレスを確認します。TCP Tunnel はこの UDP メディア経路を転送しません。 |
+| ローカルアドレス保護で接続先が拒否される | 公開モードはループバック・プライベートアドレスを制限します。同じホストの TS には、管理者が設定する固定サーバーモードを使います。 |
+| 画面共有がタイムアウトする・黒いまま | 画面共有は独立した WebRTC 接続です。共有統計のネゴシエーション、ICE、コーデックを確認します。音声の接続成功だけでは画面の到達性を確認できません。 |
+| 更新後にデータがない・復号できない | 元のデータディレクトリまたは volume と対応する `master.key` を使います。`docker compose down -v` で更新しないでください。 |
+
+### ⚠️ 要件と注意
+
+- ソースからのビルドには Node.js `>=22.12` が必要です。Docker と Release には必要な実行環境が含まれます。
+- WebRTC に対応した最新の Chrome、Edge などを使用してください。マイクとウィンドウ音声には通常 HTTPS が必要です。
+- WebSpeak のホストから TeamSpeak に到達できる必要があります。標準音声ポートは `9987` です。
+- Web サービスは `3040/TCP` を使用します。公開時は HTTPS と WebSocket をリバースプロキシ経由で公開してください。
+- IPv6 にはルーティング可能な IPv6、OS/コンテナで有効な IPv6、適切なファイアウォール設定が必要です。リテラルは `[2001:db8::1]#9987` の形式です。
+- 保存したブラウザ ID は同じブラウザで同時に1接続だけ使用できます。
+- BGM共有はデスクトップのみで、WebRTC が必要です。
+
+- WebRTC の初期範囲は UDP `40000–40099` です。全体を許可し、変更前に WebRTC を無効化して保存します。
+- アプリケーションの上限は 1 インスタンス 100 ブラウザーセッションです。性能保証や TS ライセンス上限を示すものではありません。
+
+<a id="changelog"></a>
+
+## 更新履歴
+
+以下の更新履歴は上流 WebSpeak のリリースを対象としています。
+
+<a id="latest-release-notes"></a>
+
+### [v0.3.2](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) · 2026-11-14
+
+- サードパーティースキンでホストの装飾を変更できます。復元と許可の操作は WebSpeak が管理し、組み込みスキンに戻せます。TS3 判定と互換性情報の ph1gros（#46）、ホスト装飾と復元機能の OddTurtleHead（#57）に感謝します。
+- 日間、夜間、ILLUSIA では上部バーからアプリライブラリを開けます。KAAK 3.1.134 では左端のアイコン列に移動し、隣のボタンとサイズを揃えました。固定したアプリは先頭に表示されます。
+- 管理画面にフィールドエディター、P2P ファイル転送・動画の同時視聴・TSMusicBot の設定フォーム、各リポジトリへのリンクを追加しました。
+- ストアでは表示情報の差異を許容し、SHA-256、パッケージ形式、インストールや実行に必要な項目を検証します。
+- 開発ガイドと Agent Skill に、アプリ入口の配置、設定項目、公開プラグインに必要な独立した HTTPS オリジンを記載しました。
+
+### [v0.3.1](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.1) · 2026-11-13
+
+- WebSocket 再生で Opus のチャンネル情報と実際のパケット長を扱うよう修正しました。WebRTC の下りミックスでもステレオを維持します。関連 #54。
+- ノイズ抑制にオフ・標準・強の3段階を追加しました。強ではブラウザーのノイズ抑制と RNNoise を併用します。関連 #53。
+- 音声パネルから直近2分間のゲートウェイ、音声、マイクの診断をエクスポートできます。バックグラウンドでの録音はブラウザーと OS の制約を受けます。関連 #49、#55。
+- プラグインの入口を音声ワークスペースのツールバーに移動し、管理者がショートカットを固定できるようにしました。関連 #56。
+- 有効期限付きの非公開招待を追加し、KAAK のウェルカム画面を復元しました。デモのスキンメニューが隠れる問題と、大きなスキンのダウンロードが早くタイムアウトする問題を修正しました。README に5種類のスキン画像を追加しました。
+
+### [v0.3.0](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.0) · 2026-11-03
+
+#### プラグインアプリ
+
+- 独立したブラウザアプリと任意の Node バックエンドに対応するプラグイン API v2 を公開。作者がルート、状態、通信、機能を実装できます。
+- GitHub ストアまたはローカルの `.wplugin` からインストール。管理者が公開・非公開設定を管理し、確認して有効化します。更新後は再度信頼の確認が必要です。
+- スキンに依存しないフローティング起動ボタンとアプリライブラリを追加。ウィンドウの移動、サイズ変更、最小化、最大化、復元に対応し、最小化やライブラリへの移動でもアプリを再読み込みしません。
+- アプリテンプレート、開発ガイド、Agent Skill を提供。P2P ファイル転送と動画の同時視聴は独立リポジトリで配布します。
+
+#### スキンと許可
+
+- 初回アクセス時に、インスタンスのサードパーティ製スキンとプラグインをまとめて確認します。接続用の認証情報は含みません。スキンメニュー末尾の「許可」から変更できます。
+- 同意しない場合は昼・夜・ILLUSIA のみ利用でき、KAAK、その他のスキン、プラグイン入口は非表示になります。許可を取り消すと内蔵スキンに戻り、読み込み処理、関連コンポーネント、アプリページを停止します。
+- マニフェストの権限、データ投影、ファイルハッシュ、ホスト操作の検証は維持します。管理者による確認と信頼は別途必要です。
+
+#### 修正と更新
+
+- ウィンドウ、画面全体、音声なしの共有で、映像のみの offer にネイティブ TS クライアントが応答しない問題を修正。必要な音声セクションを交渉しますが、マイクの収録や音声の生成は行いません。ウィンドウと画面全体での表示はユーザーの再テストで確認済みです。
+- SDK を `@honeybbq/teamspeak@1.0.0-beta.23` に更新。省略可能なメンバーフィールドに対応し、発話終了を表す空の音声パケットを除外します。
+- upstream の TSDNS、Query の制限時リトライ、ファイル転送、切断処理の修正を取り込みました。
+- IPv6 の接続先検証、並列ログイン制限、パスワード変更時のセッション失効、信頼済みプロキシの制限、PCM 送信保護を修正しました。
+- スキンの初回読み込みに実際のビルドバージョンを使用する修正を維持。デスクトップ、Web、Android のアプリバージョンを統一しました。
+
+#### アップグレード
+
+- API v2 は v1 のプラグインと互換性がありません。対応アプリへ更新し、確認後に有効化してください。
+- 公開環境のプラグインには、管理画面で設定した独立 HTTPS オリジンと実行ポート（既定 `3042`）へのプロキシが必要です。メインサイトと同じオリジンは使用できません。
+- インスタンス単位の許可を改めて選択してください。旧スキン単位の許可は同意として引き継がれません。
+
+
+### [v0.2.9](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.2.9) · 2026-10-24
+
+#### 機能追加
+
+- 上流 SDK 1.0.0-beta.19 へ移行しました。通常の音声接続はクライアントのライブ一覧を使用し、Query の一覧取得権限を必要としません。
+- GitHub スキンストアと、インスタンスごとのインストール、更新、有効化の管理を追加しました。Discord Voice は標準 `.wskin` の独立したサンプルとして配布します。
+- 固定サーバーモードに任意の TS 管理パネルを追加しました。WebQuery、TCP または SSH Query の認証情報を設定し、サーバー、チャンネル、メンバー、サーバーグループ、BAN を管理できます。
+- 中継ノードがブラウザー向けの音声接続先を公開し、音声セッションを担当できるようになりました。ゲートウェイ間の余分な転送を減らせます。
+- ワークスペース保持と再接続の共通 API を追加し、KAAK に適用しました。管理画面、プロジェクトの GitHub、QQ グループへの入口も追加しました。
+- TeamSpeak のチャンネル区切りに対応しました。配置、繰り返し、空白行、標準線種を扱い、表示データをスキンにも公開します。
+
+#### 修正
+
+- 画面共有の全画面サイズと、退出したメンバーの状態および再生リソースの解放を修正しました。
+- BAN 成功時の誤った失敗表示、Query 接続の人数への混入、チャンネルパスワードのラベルを修正しました。
+- 権限不足、レート制限、タイムアウトを区別します。操作成功後の更新だけが失敗した場合は別の警告を表示し、重複操作を防ぎます。
+- SDK が失敗した HTTP 応答を WebQuery 成功とみなすことを防止し、DC のホーム、チャット、狭い画面の操作部品の配置を修正しました。
+
+#### 既知の問題
+
+- [PR #48](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/pull/48) のセキュリティ強化は本リリースに含まれません。PR のクローズは、報告された問題の修正完了を意味しません。
+
+<details>
+<summary>v0.2.8 以前の履歴を表示</summary>
+
+### [v0.2.8](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.2.8) · 2026-10-17
+
+#### 画面共有と接続の安定性
+
+- ブラウザーと TeamSpeak ネイティブクライアント間の画面共有で、接続ネゴシエーションと映像トラックの処理を修正しました。
+- チャンネルをすばやく切り替えた際の処理を改善し、クライアント状態の不整合を減らしました。
+- 一部スキンコンポーネントの内容表示と KAAK の多言語表示を修正しました。
+
+#### インターフェースの改善
+
+- 音声デバイス名を省略せず表示し、幅が足りない場合は折り返して、長い名前を判別しやすくしました。
+- アバターの代替テキストが誤って選択される問題を修正しました。
+
+### [v0.2.7](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.2.7) · 2026-10-13
+
+#### より開かれたスキンシステム
+
+- より開かれたスキン編集・実行環境を提供し、任意のコンポーネントのスタイルや配置を変更したり、ウィジェットを追加したりできるようになりました。
+- 音声パネルに入った後、同じブラウザーで管理画面を新しいウィンドウに開いてログインすると、スキンエディターが有効になります。
+- 開発例として「KAAK」スキンを同梱しました。
+- スキン開発 Agent Skill を更新しました。
+
+#### 機能強化
+
+- SRV レコードと TeamSpeak Nickname 形式のサーバーアドレス解決に対応しました。
+- 自由モードでは複数サーバーのタブを管理できます。このボタンは「固定サーバー」モードでは使用できません。
+- 画面共有にビットレート設定を追加しました。
+- 入力したチャンネルパスワードを WebSpeak がブラウザーに保存するようになりました。
+- ロックされたチャンネルの前に鍵アイコンを表示します。
+- チャット履歴を永続的に保存するようになりました。
+
+#### バグ修正
+
+- アドレス解析の不具合を修正しました。
+- 音量操作とメンバーカードのドラッグでフォーカスが競合する問題を修正しました。
+- ユーザーステータスが誤って「不明」と解析される問題を修正しました。
+
+### [v0.2.6](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.2.6) · 2026-10-08
+
+0.2.5 から音声ゲートウェイ、共有プロトコル、音声ワークスペース、管理モジュールを大規模に再構成。#6/#7/#10 を修正し、#9/#12 を実装。PR #13 が報告した既存 TS6 画面共有の検出漏れも修正しました。Opus、セッションのライフサイクル、モバイル操作を改善。Windows x64、Linux x64/ARM64、Docker amd64/arm64、Android arm64-v8a/armeabi-v7a/x86_64 APK を提供。
+
+### [v0.2.5](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.2.5) · 2026-09-27
+
+`.wskin` スキン、管理者向けの有効化/デフォルト設定、保護された昼・夜・ILLUSIA 内蔵スキンを追加。未完成の Aurora Voice サンプルを削除し、読み込み時のちらつき、ダークモードの視認性、音声画面のアートレイヤーを修正。公式スキン開発 Agent Skill も追加しました。
+
+### [v0.2.4](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.2.4) · 2026-09-22
+
+ブラウザと TeamSpeak 6 ネイティブクライアント間のクロスプラットフォーム P2P 画面共有を追加しました。STUN/外部 TURN 設定、プレーヤーと視聴者状態、1080p/60 FPS 取得設定、WebRTC 統計に対応し、共有操作と訪問者番号も改善しました。
+
+### [v0.2.3](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.2.3) · 2026-09-19
+
+チャンネルメンバーの移動操作と権限に応じた直接移動を追加し、アバター表示、ミュート状態の同期、保存 ID の復元に対応しました。5 言語のスクリーンショットとドキュメントも更新しました。
+
+### [v0.2.2](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.2.2) · 2026-09-17
+
+ブラウザ側マイクノイズ抑制、ロシア語・日本語 UI、言語別ウェルカム文を追加。音量操作と PR #2 を基にしたエラー表示・エラーコードを改善しました。
+
+### [v0.2.1](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.2.1) · 2026-09-13
+
+接続エラー表示を改善し、IPv6 接続先を標準対応しました。
+
+### [v0.2.0](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.2.0) · 2026-09-10
+
+パスワード案内、正式な中継モード、複数中継選択、接続診断を追加しました。
+
+### [v0.1.8](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.1.8) · 2026-09-08
+
+Docker 起動を簡略化し、15秒の接続タイムアウトと継続的なネットワーク監視を追加しました。
+
+### [v0.1.7](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.1.7) · 2026-09-06
+
+ドイツ語、Telegram、ネットワーク統計、全体音量を追加し、BGM 音量の変動を修正しました。
+
+### [v0.1.6](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.1.6) · 2026-09-04
+
+ウィンドウ・タブ音声の共有、ID 保持の案内、サイトアイコンを追加し、WebRTC のメンバー別音量を修正しました。
+
+### [v0.1.5](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.1.5) · 2026-09-04
+
+ID 保存処理を修正し、テーマ切り替えを改善しました。
+
+### [v0.1.4](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.1.4) · 2026-09-03
+
+WebRTC とチャンネルチャットを修正し、管理画面、ログ、モバイル配置を改善しました。
+
+### [v0.1.3](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.1.3) · 2026-09-03
+
+内蔵 WebRTC を追加し、TeamSpeak SDK を移行しました。メンバー同期と音声バッファーを改善しました。
+
+</details>
+
+<a id="contributors"></a>
+
+## 貢献者と主な貢献
+
+<details>
+<summary>上流作者と PR の貢献を表示</summary>
+
+上流 SDK の作者、マージ済みの GitHub PR、および独立配布のスキンパッケージへ移植された原作の貢献を記載しています。
+
+- [HoneyBBQ](https://github.com/HoneyBBQ) — 上流 SDK [teamspeak-js（`@honeybbq/teamspeak`）](https://github.com/HoneyBBQ/teamspeak-js) の作者。WebSpeak の TeamSpeak プロトコル通信を支えるクライアントライブラリを提供。
+- [ph1gros](https://github.com/ph1gros) — [PR #48](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/pull/48) で IPv6 接続先検証、管理者認証とセッション、プロキシ配下の制限、PCM 送信境界の問題を報告し、修正案と回帰テストを提供。元のパッチは直接マージせず、`dev` で改めて修正を実装しました。
+- [LainHE](https://github.com/LainHE) — [マージ済み PR #2、#8、#28、#31–#35、#37、#38、#40](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/pulls?q=is%3Apr+is%3Amerged+author%3ALainHE)。ブラウザのエラー翻訳、拡大縮小とホームのレイアウト、画面共有のビットレートと視聴者アバター、中継先の検証と再接続、信頼済みプロキシの扱い、接続失敗の通知、音声エラー報告、WebRTC 失敗時のリソース解放を改善。
+- [TimmySheep](https://github.com/TimmySheep) — [マージ済み PR #13、#15–#24](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/pulls?q=is%3Apr+is%3Amerged+author%3ATimmySheep)。既存 TS6 共有の検出、画面比率、モバイル音声・画面点灯・スキンメニュー、ID のチャンネル設定、PWA/テーマ、チャット履歴、メンバー音声状態、マイク権限などに貢献。
+- [yichen11818](https://github.com/yichen11818) — [PR #25](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/pull/25) で TeamSpeak の登録済みニックネーム接続と接続先の保持に対応し、[PR #51](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/pull/51) で初回接続後の KAAK ワークスペース保持と再接続を改善。[PR #27](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/pull/27) と [PR #52](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/pull/52) では Discord スキンの原作デザインと実装を提供（コミット名義 **yumi**）。その後、WebSpeak プロジェクトが[独立配布の `.wskin` スキン](https://github.com/Huddle-Up-Forge/webspeak-skin-discord-voice)へ移植。
+
+</details>
+
+## コミュニティと関連プロジェクト
+
+[GitHub Issues](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/issues) · [QQ グループ 869500475](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=yhumUMDD9PmyYFWdXWUb_x7hM5trFQY8&authKey=Pw3HBGT7GwMinTQnuFGfnpf0aRSzXOJKcAiujVP1%2BXMpjheAKrncTRivicBJxpjV&noverify=0&group_code=869500475) · [Telegram](https://t.me/+8qShpTcuN9A3MWY9)
+
+[NeteaseTSBot](https://github.com/yichen11818/NeteaseTSBot)：複数サービスの再生と Web コンソールに対応した TeamSpeak 音楽ボット。
+
+## ライセンス
+
+WebSpeak は [AGPL-3.0-only](../LICENSE) で公開しています。依存ライブラリのライセンスと帰属は各上流プロジェクトを参照してください。
+
+<p align="right"><a href="#readme-top">先頭へ ↑</a></p>
