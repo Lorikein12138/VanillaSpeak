@@ -74,7 +74,7 @@ export function waitForAndroidGateway(
 export async function startAndroidGateway(): Promise<void> {
   const root = document.getElementById("app");
   if (!root) return;
-  root.innerHTML = '<main style="min-height:100dvh;display:grid;place-items:center;background:#e9fbfb;color:#0b5960;font:16px system-ui;text-align:center;padding:24px"><div><h1 style="font-size:26px">WebSpeak</h1><p id="mobile-gateway-status">正在启动本地语音服务…</p><button id="mobile-gateway-retry" type="button" hidden>重试</button></div></main>';
+  root.innerHTML = '<main class="gateway-startup"><div><img src="/brand/vanillaspeak-128.png" width="64" height="64" alt=""><h1>VanillaSpeak</h1><p id="mobile-gateway-status" role="status" aria-live="polite">正在启动本地语音服务…</p><button id="mobile-gateway-retry" class="product-control" type="button" hidden>重试</button></div></main>';
   const status = root.querySelector("#mobile-gateway-status");
   const retry = root.querySelector<HTMLButtonElement>("#mobile-gateway-retry");
   const controller = new AbortController();

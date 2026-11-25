@@ -75,6 +75,7 @@ export interface SkinContent {
 }
 
 export interface InstalledSkin extends SkinManifest {
+  source?: "local" | "instance";
   css: string;
   assets: Record<string, Blob>;
   contentData?: SkinContent;

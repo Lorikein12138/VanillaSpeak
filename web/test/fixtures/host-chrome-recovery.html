@@ -6,7 +6,7 @@
 <title>Host chrome recovery fixture</title>
 <script>
   // Authorize third-party skins before instance-authorization.ts is evaluated.
-  try { localStorage.setItem("webspeak:instance-authorization:v1", JSON.stringify({ schemaVersion: 1, allowed: true })); } catch {}
+  try { localStorage.setItem("webspeak:instance-authorization:v2", JSON.stringify({ schemaVersion: 2, allowed: true })); } catch {}
 </script>
 <style>
   html, body { margin: 0; min-height: 100%; font: 12px/1.5 system-ui, sans-serif; }
@@ -27,12 +27,10 @@
   <button type="button" id="launcher" data-ws-part="host.plugins.launcher">Plugins</button>
 </div>
 <div id="app"></div>
-<div id="auth-app"></div>
 <pre id="result" style="position:relative;z-index:5;background:#fff">pending</pre>
 <script type="module">
-import { createApp, h } from "vue";
+import { createApp, h, nextTick } from "vue";
 import HostChrome from "/src/components/HostChrome.vue";
-import InstanceAuthorization from "/src/components/InstanceAuthorization.vue";
 import { hostBuiltInSkinRequests, setHostChromeActiveSkin } from "/src/services/host-chrome.ts";
 import { hostOwnedLayers, syncRecoveryPopover } from "/src/services/host-owned-layer.ts";
 
@@ -44,7 +42,6 @@ document.head.append(style);
 
 setHostChromeActiveSkin("community.hostile-fixture");
 createApp({ render: () => h(HostChrome, { language: "en", connected: true }) }).mount("#app");
-createApp({ render: () => h(InstanceAuthorization, { language: "en" }) }).mount("#auth-app");
 
 const layer = hostOwnedLayers().find((entry) => entry.name === "recovery");
 const results = [];
@@ -85,25 +82,6 @@ if (!layer) {
       buttonRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
     });
   }
-  // Authorization: the real dialog is teleported into its own closed shadow
-  // root. showModal() must place it above the same hostile fullscreen layer.
-  style.textContent = scenarios[0]?.css ?? "";
-  const authLayer = hostOwnedLayers().find((entry) => entry.name === "authorization");
-  const authDialog = authLayer?.container.querySelector("dialog");
-  let authorization = null;
-  if (authLayer && authDialog) {
-    authDialog.showModal();
-    const rect = authDialog.getBoundingClientRect();
-    const hit = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
-    authorization = {
-      modalOpen: authDialog.matches(":modal"),
-      topLayerHit: hit === authLayer.host || authDialog === hit || authLayer.container.contains(hit),
-      hostileCovered: hit === document.getElementById("dock"),
-      layerOutsideSkinRoot: authLayer.host.closest(".ws-skin-root") === null,
-      sized: rect.width > 0 && rect.height > 0,
-    };
-    authDialog.close();
-  }
   // Verify the rejected-promotion fallback really lays the capsule out. A
   // closed [popover] is `display:none !important` until the attribute is gone.
   const fallback = document.createElement("div");
@@ -124,7 +102,30 @@ if (!layer) {
     visible: fallbackStyle.display !== "none" && fallbackRect.width > 0 && fallbackRect.height > 0,
   };
   fallback.remove();
-  output.textContent = JSON.stringify({ results, authorization, popoverFallback });
+  // Start with a built-in skin and a hidden recovery entry. A visible
+  // persistent entry would allow focus even if the shortcut scheduled it early.
+  style.textContent = "";
+  setHostChromeActiveSkin("builtin.dark");
+  await nextTick();
+  await nextTick();
+  const launcher = document.getElementById("launcher");
+  launcher.focus();
+  const closedBeforeShortcut = !popover.matches(":popover-open");
+  launcher.dispatchEvent(new KeyboardEvent("keydown", {
+    key: "R", ctrlKey: true, altKey: true, shiftKey: true,
+    bubbles: true, cancelable: true,
+  }));
+  await nextTick();
+  await nextTick();
+  const keyboardRecovery = {
+    closedBeforeShortcut,
+    opened: popover.matches(":popover-open"),
+    focusedAction: layer.shadow.activeElement?.dataset.wsRecoveryAction,
+  };
+
+  layer.container.querySelector('[data-ws-recovery-action="disable"]').click();
+  const consent = JSON.parse(localStorage.getItem("webspeak:instance-authorization:v2"));
+  output.textContent = JSON.stringify({ results, authorizationDisabled: consent.allowed === false, popoverFallback, keyboardRecovery });
 }
 </script>
 </body>

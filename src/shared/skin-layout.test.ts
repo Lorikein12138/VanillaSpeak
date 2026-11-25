@@ -20,7 +20,7 @@ async function vueSources(directory: URL): Promise<string[]> {
 }
 
 test("the stable layout registry covers public skin hooks and excludes the admin console", async () => {
-  const [webClient, demo, sharedComponents, skinSwitcher, languageSwitcher, hostChrome, pluginPanel, authorization, recoveryNotice, admin, adminComponents] = await Promise.all([
+  const [webClient, demo, sharedComponents, skinSwitcher, languageSwitcher, hostChrome, pluginPanel, recoveryNotice, admin, adminComponents] = await Promise.all([
     readFile(new URL("../../web/src/views/WebClient.vue", import.meta.url), "utf8"),
     readFile(new URL("../../web/src/views/DemoView.vue", import.meta.url), "utf8"),
     vueSources(new URL("../../web/src/components/web-client/", import.meta.url)),
@@ -28,12 +28,11 @@ test("the stable layout registry covers public skin hooks and excludes the admin
     readFile(new URL("../../web/src/components/LanguageSwitcher.vue", import.meta.url), "utf8"),
     readFile(new URL("../../web/src/components/HostChrome.vue", import.meta.url), "utf8"),
     readFile(new URL("../../web/src/components/PluginPanel.vue", import.meta.url), "utf8"),
-    readFile(new URL("../../web/src/components/InstanceAuthorization.vue", import.meta.url), "utf8"),
     readFile(new URL("../../web/src/components/SkinLoadRecoveryNotice.vue", import.meta.url), "utf8"),
     readFile(new URL("../../web/src/views/AdminView.vue", import.meta.url), "utf8"),
     vueSources(new URL("../../web/src/components/admin/", import.meta.url)),
   ]);
-  const publicSource = [webClient, demo, ...sharedComponents, skinSwitcher, languageSwitcher, hostChrome, pluginPanel, authorization, recoveryNotice].join("\n");
+  const publicSource = [webClient, demo, ...sharedComponents, skinSwitcher, languageSwitcher, hostChrome, pluginPanel, recoveryNotice].join("\n");
   const publicParts = new Set([...publicSource.matchAll(/data-ws-part="([^"]+)"/g)].map((match) => match[1]));
   const interactiveParts = new Set<string>();
   for (const match of publicSource.matchAll(/<[A-Za-z][\w.-]*\b[^>]*>/gs)) {

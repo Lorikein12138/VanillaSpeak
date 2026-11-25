@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from "../shared/product.js";
 import express from "express";
 import { createServer } from "node:http";
 import path from "node:path";
@@ -33,7 +34,7 @@ app.get("/api/public-config", (_request, response) => {
   response.json({
     version: process.env.WEBSPEAK_VERSION ?? "0.3.0",
     initialized: true,
-    siteName: "WebSpeak",
+    siteName: PRODUCT_NAME,
     welcomeText: DEFAULT_WELCOME_TEXTS.zh,
     welcomeTextEn: DEFAULT_WELCOME_TEXTS.en,
     welcomeTexts: DEFAULT_WELCOME_TEXTS,

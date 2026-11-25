@@ -1,5 +1,5 @@
 <template>
-  <div ref="root" class="language-switcher" :class="{ open }" @keydown.esc="close">
+  <div ref="root" class="language-switcher" :class="{ open }" @keydown.esc.stop="dismiss" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
     <button
       type="button"
       class="language-trigger"
@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import Icon from "./Icon.vue";
 
 type Language = "zh" | "en" | "de" | "ru" | "ja";
@@ -86,7 +86,25 @@ function close() {
 function select(value: Language) {
   emit("update:modelValue", value);
   emit("change", value);
+  dismiss();
+}
+
+function dismiss() {
+  if (!open.value) return;
   close();
+  root.value?.querySelector<HTMLButtonElement>(".language-trigger")?.focus();
+}
+
+async function move(direction: number) {
+  if (!open.value) {
+    open.value = true;
+    await nextTick();
+  }
+  const items = [...(root.value?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [])];
+  if (!items.length) return;
+  const focused = items.indexOf(document.activeElement as HTMLButtonElement);
+  const index = focused < 0 ? (direction > 0 ? 0 : items.length - 1) : (focused + direction + items.length) % items.length;
+  items[index]?.focus();
 }
 
 function onDocumentPointerDown(event: PointerEvent) {
@@ -98,205 +116,30 @@ onUnmounted(() => document.removeEventListener("pointerdown", onDocumentPointerD
 </script>
 
 <style scoped>
-.language-switcher {
-  position: relative;
-  z-index: 20;
-  flex: 0 0 auto;
-  color: #006a64;
-  font-family: inherit;
-}
-
-.language-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 70px;
-  min-height: 32px;
-  padding: 0 9px;
-  color: #006a64;
-  background: #e2f2ef;
-  border: 1px solid #c8e6e1;
-  border-radius: 8px;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: color .16s, background .16s, border-color .16s, box-shadow .16s;
-}
-
-.language-trigger:hover,
-.language-switcher.open .language-trigger {
-  color: #fff;
-  background: #006a64;
-  border-color: #006a64;
-  box-shadow: 0 7px 16px rgba(0, 106, 100, .16);
-}
-
-.language-trigger > .ui-icon:last-child {
-  margin-left: auto;
-  transition: transform .16s;
-}
-
-.language-switcher.open .language-trigger > .ui-icon:last-child {
-  transform: rotate(180deg);
-}
-
-.language-current-flag,
-.language-option-flag {
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-  line-height: 1;
-}
-
-.language-current-icon {
-  display: none;
-}
-
-.language-current-flag {
-  font-size: 15px;
-}
-
-.language-current-code {
-  letter-spacing: .02em;
-}
-
-.language-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: minmax(38px, max-content);
-  align-items: start;
-  align-content: start;
-  gap: 3px;
-  width: min(360px, calc(100vw - 16px));
-  height: auto;
-  max-height: none;
-  padding: 7px;
-  overflow: visible;
-  background: #fff;
-  border: 1px solid #dce9e5;
-  border-radius: 13px;
-  box-shadow: 0 16px 36px rgba(23, 60, 54, .18), 0 3px 8px rgba(23, 60, 54, .06);
-  animation: language-menu-in .14s ease-out;
-}
-
-.language-option {
-  display: flex;
-  align-items: center;
-  align-self: start;
-  min-width: 0;
-  gap: 8px;
-  min-height: 38px;
-  padding: 6px 8px;
-  color: #344540;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: color .14s, background .14s, border-color .14s;
-}
-
-.language-option:hover,
-.language-option:focus-visible,
-.language-option.selected {
-  color: #006a64;
-  background: #edf8f5;
-  border-color: #d4eee8;
-}
-
-.language-option-flag {
-  flex: 0 0 auto;
-  font-size: 17px;
-}
-
-.language-option-copy {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  min-width: 0;
-  flex: 1;
-  gap: 8px;
-}
-
-.language-option strong,
-.language-option small {
-  overflow: visible;
-  text-overflow: clip;
+.language-switcher { position: relative; flex: none; color: var(--ink); }
+.language-switcher.open { z-index: 52; }
+.language-trigger, .language-option {
+  display: inline-flex; gap: 6px; align-items: center; justify-content: center;
+  min-height: 38px; padding: 6px 9px; border: 1px solid var(--control-border);
+  border-radius: 8px; background: var(--surface); color: var(--ink);
+  font: 600 14px/1.25 var(--body-font);
   white-space: nowrap;
 }
-
-.language-option strong {
-  flex: 0 0 auto;
-  font-size: 12px;
+.language-trigger:hover, .language-option:hover, .language-option[aria-selected="true"] {
+  background: var(--selected); color: var(--action);
 }
-
-.language-option small {
-  flex: 0 0 auto;
-  color: #91a19c;
-  font-size: 10px;
-  font-weight: 700;
+.language-dropdown {
+  position: absolute; top: calc(100% + 7px); right: 0; display: grid; gap: 4px;
+  min-width: 156px; max-width: calc(100vw - 32px); padding: 6px;
+  color: var(--ink); background: var(--raised); border: 1px solid var(--rule);
+  border-radius: 8px; box-shadow: var(--popover-shadow);
 }
-
-.language-option > .ui-icon {
-  flex: 0 0 auto;
+.language-option {
+  display: flex; justify-content: flex-start; width: 100%; color: var(--ink);
+  border-color: transparent; background: transparent; text-align: start;
 }
-
-@keyframes language-menu-in {
-  from { opacity: 0; transform: translateY(-4px) scale(.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-:global(html[data-theme="dark"] .admin-root) .language-trigger,
-:global(:root[data-theme="dark"] .admin-root) .language-trigger {
-  color: #a9d9d1;
-  background: #203531;
-  border-color: #38564f;
-}
-
-:global(html[data-theme="dark"] .admin-root) .language-trigger:hover,
-:global(html[data-theme="dark"] .admin-root) .language-switcher.open .language-trigger,
-:global(:root[data-theme="dark"] .admin-root) .language-trigger:hover,
-:global(:root[data-theme="dark"] .admin-root) .language-switcher.open .language-trigger {
-  color: #10201d;
-  background: #69d2c7;
-  border-color: #69d2c7;
-}
-
-:global(html[data-theme="dark"] .admin-root) .language-dropdown,
-:global(:root[data-theme="dark"] .admin-root) .language-dropdown {
-  background: #172321;
-  border-color: #30413d;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, .32);
-}
-
-:global(html[data-theme="dark"] .admin-root) .language-option,
-:global(:root[data-theme="dark"] .admin-root) .language-option {
-  color: #d7e7e3;
-}
-
-:global(html[data-theme="dark"] .admin-root) .language-option:hover,
-:global(html[data-theme="dark"] .admin-root) .language-option:focus-visible,
-:global(html[data-theme="dark"] .admin-root) .language-option.selected,
-:global(:root[data-theme="dark"] .admin-root) .language-option:hover,
-:global(:root[data-theme="dark"] .admin-root) .language-option:focus-visible,
-:global(:root[data-theme="dark"] .admin-root) .language-option.selected {
-  color: #69d2c7;
-  background: #203531;
-  border-color: #38564f;
-}
-
-@media (max-width: 520px) {
-  .language-trigger {
-    min-width: 62px;
-    min-height: 30px;
-    padding-inline: 7px;
-  }
-
-  .language-dropdown {
-    width: min(360px, calc(100vw - 16px));
-  }
+.language-option span { flex: 1; }
+@media (max-width: 899px) {
+  .language-trigger, .language-option { min-height: 44px; }
 }
 </style>

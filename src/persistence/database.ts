@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from "../shared/product.js";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { dirname } from "node:path";
@@ -561,7 +562,7 @@ export class WebSpeakDatabase {
              id, site_name, welcome_text, access_mode, ts_host, ts_port,
              ts_password_encrypted, detected_protocol, last_test_at,
              last_test_latency_ms, last_test_error, updated_at
-           ) VALUES (1, 'WebSpeak', '', 'fixed', '127.0.0.1', 9987, NULL, NULL, NULL, NULL, NULL, ?)`,
+           ) VALUES (1, '${PRODUCT_NAME}', '', 'fixed', '127.0.0.1', 9987, NULL, NULL, NULL, NULL, NULL, ?)`,
         ).run(now);
         this.database.exec("PRAGMA user_version = 1");
       });

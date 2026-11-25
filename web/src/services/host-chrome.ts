@@ -1,3 +1,4 @@
+import { BUILTIN_SKIN_IDS } from "../../../src/shared/skin-catalog.js";
 import { computed, readonly, ref, shallowRef } from "vue";
 import { DECORATIVE_PART_IDS } from "../../../src/shared/skin-visual-parts.js";
 import { resolveHiddenHostParts, type SkinChromeDocument } from "../../../src/shared/skin-chrome.js";
@@ -13,24 +14,13 @@ const instanceHiddenParts = ref<ReadonlySet<string>>(new Set());
 const skinChrome = shallowRef<SkinChromeDocument | undefined>(undefined);
 const activeSkin = ref<string | undefined>(undefined);
 
-/**
- * Skins bundled with WebSpeak. They are never treated as "third-party" for the
- * recovery affordance, so official Day/Night/KAAK stay decoration-free
- * and gain no extra host chrome.
- */
-const BUNDLED_SKIN_IDS: ReadonlySet<string> = new Set([
-  "builtin.light",
-  "builtin.dark",
-  "community.kaak-voice",
-]);
-
 /** The id of the skin currently applied by `usePublicSkin`. */
 export function setHostChromeActiveSkin(id: string | undefined): void {
   activeSkin.value = id;
 }
 
 export function isBundledSkin(id: string | undefined): boolean {
-  return !id || id.startsWith("builtin.") || BUNDLED_SKIN_IDS.has(id);
+  return !id || BUILTIN_SKIN_IDS.some(builtin => builtin === id);
 }
 
 /** True while a non-bundled (open / third-party) skin is applied. */

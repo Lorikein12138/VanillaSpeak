@@ -3,10 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" content="#006a64" />
-    <meta name="description" content="WebSpeak — TeamSpeak browser voice workspace" />
-    <link rel="icon" type="image/jpeg" href="/webspeak-icon.jpg" />
-    <title>WebSpeak · TeamSpeak Web Client</title>
+    <meta name="theme-color" content="#F8F5ED" />
+    <meta name="description" content="VanillaSpeak — TeamSpeak browser voice workspace" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/brand/favicon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <style>html{background:#F8F5ED}html[data-theme="dark"]{background:#181D1A}</style>
+    <script>
+      try {
+        const choice = localStorage.getItem("webspeak:skin-choice");
+        const mode = localStorage.getItem("webspeak:theme");
+        if (choice === "builtin.dark" || (choice !== "builtin.light" && (mode === "dark" || (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches)))) {
+          document.documentElement.dataset.theme = "dark";
+          document.querySelector('meta[name="theme-color"]').content = "#181D1A";
+        }
+      } catch {}
+    </script>
+    <title>VanillaSpeak · TeamSpeak Web Client</title>
   </head>
   <body>
     <div id="app"></div>

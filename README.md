@@ -1,7 +1,7 @@
 <a id="readme-top"></a>
 
 <div align="center">
-  <a href="https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak"><img src="https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/assets/webspeak-banner.png" alt="WebSpeak — TeamSpeak in your browser" width="100%" /></a>
+  <img src="./web/public/brand/vanillaspeak-128.png" alt="" width="88" />
   <h1>VanillaSpeak</h1>
   <p><strong>打开浏览器，就能加入你的 TeamSpeak。</strong></p>
   <p>A self-hosted browser voice client for TeamSpeak 3 &amp; TeamSpeak 6.</p>
@@ -37,7 +37,7 @@ Join voice channels, chat and share your screen from a browser. Deploy your own 
 
 <a id="live-demo"></a>
 
-## 上游在线演示 · Upstream live demo
+## 上游在线演示与历史截图 · Upstream demos and screenshots
 
 | 节点 · Region | 地址 · Address |
 | --- | --- |
@@ -57,7 +57,7 @@ Join voice channels, chat and share your screen from a browser. Deploy your own 
 | --- | --- |
 | ![日间皮肤 · Day skin](https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/screenshots/skin-day.png) | ![夜间皮肤 · Night skin](https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/screenshots/skin-night.png) |
 
-![KAAK 皮肤 · KAAK skin](https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/screenshots/skin-kaak.png)
+![上游 KAAK 历史截图 · Upstream KAAK screenshot](https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/screenshots/skin-kaak.png)
 
 ![Discord Voice 社区皮肤 · Discord Voice community skin](https://raw.githubusercontent.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/a84f66b47d3916fb3d080d0f9b6f4cf3b4ba4ca0/docs/screenshots/skin-discord.png)
 
@@ -139,7 +139,6 @@ The skills complete the contribution workflow automatically: publish validated s
 <details>
 <summary>QQ群二维码 · QQ group QR code</summary>
 
-<p align="center"><a href="http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=yhumUMDD9PmyYFWdXWUb_x7hM5trFQY8&authKey=Pw3HBGT7GwMinTQnuFGfnpf0aRSzXOJKcAiujVP1%2BXMpjheAKrncTRivicBJxpjV&noverify=0&group_code=869500475"><img src="./web/public/qq-group-qr.jpg" alt="WebSpeak QQ group 869500475" width="260" /></a></p>
 
 </details>
 

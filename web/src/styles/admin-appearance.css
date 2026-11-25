@@ -1,0 +1,25 @@
+.admin-root { font-family: var(--body-font); }
+.admin-root .admin-sidebar { background: var(--surface); color: var(--ink); border-right: 1px solid var(--rule); }
+.admin-root .admin-sidebar .product-brand strong { color: var(--ink); font-family: var(--heading-font); }
+.admin-root .admin-sidebar nav a, .admin-root .sidebar-bottom a, .admin-root .sidebar-bottom button {
+  color: var(--ink); background: transparent; border-color: var(--rule); text-decoration: none; font-size: 14px; min-width: 0;
+}
+.admin-root .admin-sidebar nav a:hover, .admin-root .admin-sidebar nav a.active { background: var(--selected); color: var(--action); }
+.admin-root .admin-sidebar .admin-nav-heading, .admin-root .admin-sidebar .admin-optional { color: var(--muted); }
+.admin-root .admin-topbar h1, .admin-root .login-card h1, .admin-root :deep(.page-heading h2) {
+  font: 600 26px/1.25 var(--heading-font); color: var(--ink);
+}
+.admin-root .login-page { background: var(--canvas); }
+.admin-root .login-card { border-radius: 16px; box-shadow: none; }
+.admin-root .login-card input, .admin-root :deep(input:not([type=checkbox]):not([type=radio])), .admin-root :deep(select), .admin-root :deep(textarea) { border-color: var(--control-border); color: var(--ink); background: var(--raised); border-radius: 8px;
+}
+.admin-root :deep(.primary-button) { min-height: 44px; background: var(--action); color: var(--on-action); border-radius: 8px; }
+.admin-root :deep(.primary-button:hover) { background: var(--action-hover); }
+.admin-root :deep(.primary-button:disabled) { background: var(--sunken); color: var(--muted); opacity: 1; }
+.admin-root :deep(.modal-card), .admin-root :deep(.confirmation-dialog) { background: var(--raised); color: var(--ink); }
+.admin-root :deep(.settings-card), .admin-root :deep(.overview-card), .admin-root :deep(.operation-card), .admin-root :deep(.readonly-card) { border-color: var(--rule); box-shadow: none; }
+.admin-root .login-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.admin-root :deep(.table-wrap), .admin-root :deep(.table-scroll) { max-width: 100%; overflow-x: auto; }
+
+:global(html[data-ws-route="admin"] body) { background: var(--canvas); color: var(--ink); }
+.admin-root .login-card header p { color: var(--muted); }

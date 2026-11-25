@@ -6,7 +6,7 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 import { effectScope, ref } from "vue";
 
-let vite, runtime, catalog, authorization, handler, installed, writes, storage, elements, root, usePublicSkin, useWebClientPublicConfig, scope;
+let vite, runtime, catalog, authorization, theme, handler, installed, writes, storage, elements, root, usePublicSkin, useWebClientPublicConfig, scope;
 const { version: appVersion } = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8"));
 const globals = new Map();
 function global(name, value) {
@@ -45,6 +45,7 @@ before(async () => {
         export const saveLocalPreferences = (...args) => globalThis.skinStorage.persist(...args);`; },
     }], server: { middlewareMode: true, hmr: false, ws: false, watch: null },
     optimizeDeps: { noDiscovery: true, include: [] }, appType: "custom" });
+  theme = await vite.ssrLoadModule("/src/services/theme.ts");
   runtime = await vite.ssrLoadModule("/src/services/skin-runtime.ts");
   catalog = await vite.ssrLoadModule("/src/services/skin-catalog.ts");
   authorization = await vite.ssrLoadModule('/src/services/instance-authorization.ts');
@@ -66,9 +67,11 @@ beforeEach(async () => {
   global("fetch", (...args) => handler(...args));
   // Existing lifecycle cases exercise explicitly authorized custom skins.
   authorization.setInstanceAuthorization(true);
+  theme.applyTheme("light");
   // A failed directory load keeps locally installed packages available.
   handler = async () => { throw new Error("offline"); };
   await catalog.listPublicSkins();
+  handler = async () => json({ skins: ["sample.a", "sample.b"].map(id => ({ ...skin(id), author: "test", license: "MIT" })) });
 });
 afterEach(() => { scope?.stop(); scope = undefined; runtime.clearCustomSkinStyle(); });
 after(async () => {
@@ -95,7 +98,7 @@ test('without instance consent, cached third-party packages are never read or in
 
 test('revoking consent cancels an in-flight custom load and removes an already active skin', async () => {
   installed.set('sample.a', skin('sample.a'));
-  const view = page({ timeoutMs: 3000 }); await view.select('sample.a');
+  const view = page({ timeoutMs: 3000 }); await view.initialize(); await view.select('sample.a');
   assert.equal(elements.has('webspeak-active-custom-skin'), true);
   const read = deferred(); globalThis.skinStorage.get = () => read.promise;
   const loading = view.select('sample.b');
@@ -179,19 +182,19 @@ test("the package deadline includes a hanging archive body", async () => {
   assert.equal(runtime.getStoredSkinId(), null);
 });
 test("page state and saved preferences belong to the last selected skin", async () => {
-  const read = deferred(), themeMode = ref("light");
+  const read = deferred();
   globalThis.skinStorage.get = () => read.promise;
-  const view = page({ themeMode });
+  const view = page(); await view.initialize();
   const old = view.select("sample.a");
   await view.select("builtin.dark"); read.resolve(skin("sample.a")); await old;
   assert.equal(view.activeSkinId.value, "builtin.dark");
   assert.equal(view.activeSkin.value, null);
-  assert.equal(themeMode.value, "dark");
+  assert.equal(theme.hostTheme.value, "dark");
   assert.deepEqual(writes.map(value => value.skinId), ["builtin.dark"]);
 });
 test("first paint becomes usable when the directory never answers", async () => {
   const response = deferred(); handler = () => response.promise;
-  const view = page(); assert.equal(view.skinReady.value, false);
+  const view = page(); assert.equal(view.skinReady.value, true);
   await view.initialize();
   assert.equal(view.skinReady.value, true);
   assert.equal(view.activeSkinId.value, "builtin.light");
@@ -201,16 +204,16 @@ test("first paint becomes usable when the directory never answers", async () => 
   assert.equal(root.dataset.wsSkin, "builtin.dark");
 });
 test("a persisted custom choice cannot keep first paint hidden on a hung package", async () => {
-  storage.set("webspeak:skin-choice", "sample.a");
+  storage.set("webspeak:third-party-skin:v2", "sample.a");
   handler = async url => url === "/api/skins" ? json({ skins: [{ ...skin("sample.a"), author: "test", license: "MIT" }] }) : new Promise(() => {});
   const view = page(); await view.initialize();
   assert.equal(view.skinReady.value, true);
   assert.equal(view.activeSkinId.value, "builtin.light");
-  assert.equal(storage.get("webspeak:skin-choice"), "sample.a", "fallback preserves the deliberate choice for a future retry");
+  assert.equal(storage.get("webspeak:third-party-skin:v2"), undefined, "failed activation retires the stored selection");
 });
 test("disposing a page settles its pending skin without publishing or persisting", async () => {
   const read = deferred(); globalThis.skinStorage.get = () => read.promise;
-  const view = page(), old = view.select("sample.a");
+  const view = page(); await view.initialize(); const old = view.select("sample.a");
   scope.stop(); await old;
   await runtime.activateSkin("builtin.dark");
   read.resolve(skin("sample.a")); await nextTurn();
@@ -235,23 +238,47 @@ test("a removed instance default falls back to the day skin", async () => {
   assert.equal(view.skinLoadError.value, null);
 });
 
-test("normal initialization uses the instance default and cached custom content", async () => {
+test("a custom instance default requires a deliberate version-2 selection even after enabling", async () => {
   const item = { ...skin("sample.a"), author: "test", license: "MIT", contentData: { title: "custom" } };
   installed.set(item.id, item);
+  storage.set("webspeak:skin-choice", item.id);
+  storage.set("webspeak:theme", "dark");
   handler = async () => json({ skins: [item], defaultSkinId: item.id });
-  const themeMode = ref("system");
-  const view = page({ timeoutMs: 1_000, themeMode }); await view.initialize();
-  assert.equal(view.skinReady.value, true);
-  assert.equal(view.activeSkinId.value, item.id);
-  assert.deepEqual(view.activeSkin.value.contentData, item.contentData);
-  assert.equal(themeMode.value, "system", "initializing a default custom skin must not override the saved system theme");
+  const view = page();
+  await view.initialize();
+  assert.equal(view.activeSkinId.value, "builtin.dark");
   assert.equal(storage.has("webspeak:skin-choice"), false);
+  await view.select(item.id);
+  assert.deepEqual(view.activeSkin.value.contentData, item.contentData);
+  assert.equal(storage.get("webspeak:third-party-skin:v2"), item.id);
   assert.equal(root.dataset.wsSkin, item.id);
+  authorization.setInstanceAuthorization(false);
+  assert.equal(view.activeSkinId.value, "builtin.dark");
+  assert.equal(storage.has("webspeak:third-party-skin:v2"), false);
+});
+
+test("an old KAAK download cannot shadow a same-ID installed package", async () => {
+  const id = "community.kaak-voice";
+  const item = { ...skin(id), author: "test", license: "MIT" };
+  installed.set(id, item);
+  const requests = [];
+  handler = async url => {
+    requests.push(url);
+    if (url === "/api/skins") return json({ skins: [item] });
+    return new Response(null, { status: 404 });
+  };
+  const view = page();
+  await view.initialize();
+  assert.equal(view.activeSkinId.value, "builtin.light");
+  await view.select(id);
+  assert.deepEqual(requests, ["/api/skins", "/api/skins/community.kaak-voice/package"]);
+  assert.equal(view.activeSkin.value, null);
+  assert.equal(installed.get(id), item);
 });
 test("first entry activates a compatible remembered skin before public config arrives", async () => {
   const item = { ...skin("sample.current"), minAppVersion: appVersion, author: "test", license: "MIT" };
   installed.set(item.id, item);
-  storage.set("webspeak:skin-choice", item.id);
+  storage.set("webspeak:third-party-skin:v2", item.id);
   const response = deferred();
   global("location", { search: "" });
   handler = async url => url === "/api/public-config" ? response.promise
@@ -270,33 +297,24 @@ test("first entry activates a compatible remembered skin before public config ar
     await view.select(item.id);
     assert.equal(view.activeSkinId.value, item.id, "initial entry and manual selection use the same version");
   } finally {
-    response.resolve(json({ version: appVersion }));
+    response.resolve(json({ version: appVersion, initialized: true }));
     await loading;
   }
-});
-test("demo initialization uses the running build version without a public config provider", async () => {
-  const item = { ...skin("sample.current"), minAppVersion: appVersion, author: "test", license: "MIT" };
-  installed.set(item.id, item);
-  handler = async () => json({ skins: [item], defaultSkinId: item.id });
-  const view = page({ timeoutMs: 1_000 });
-  await view.initialize();
-  assert.equal(view.activeSkinId.value, item.id);
-  assert.equal(view.skinLoadError.value, null);
 });
 test("using the running build version still rejects a skin requiring a newer runtime", async () => {
   const item = { ...skin("sample.future"), minAppVersion: "999.0.0", author: "test", license: "MIT" };
   installed.set(item.id, item);
-  storage.set("webspeak:skin-choice", item.id);
+  storage.set("webspeak:third-party-skin:v2", item.id);
   handler = async () => json({ skins: [item], defaultSkinId: item.id });
   const view = page({ timeoutMs: 1_000 });
   await view.initialize();
   assert.equal(view.activeSkinId.value, "builtin.light");
   assert.equal(view.skinLoadError.value.skinId, item.id);
-  assert.equal(storage.get("webspeak:skin-choice"), item.id);
+  assert.equal(storage.get("webspeak:third-party-skin:v2"), undefined);
 });
 test("reset prevents outstanding choices from restoring cleared state", async () => {
   const read = deferred(); globalThis.skinStorage.get = () => read.promise;
-  const view = page(), old = view.select("sample.a");
+  const view = page(); await view.initialize(); const old = view.select("sample.a");
   handler = async () => json({ skins: [] });
   await view.reset(); read.resolve(skin("sample.a")); await old;
   assert.equal(view.activeSkin.value, null);
@@ -309,8 +327,7 @@ test("a failed skin choice falls back, exposes recovery, and remembers the built
   handler = async url => url === "/api/skins"
     ? json({ skins: [{ ...skin("sample.a"), author: "test", license: "MIT" }] })
     : { ok: false, status: 503 };
-  await catalog.listPublicSkins();
-  const view = page();
+  const view = page(); await view.initialize();
 
   await view.select("sample.a");
   assert.equal(view.activeSkinId.value, "builtin.light");
@@ -318,7 +335,7 @@ test("a failed skin choice falls back, exposes recovery, and remembers the built
 
   await view.switchToBuiltInAfterLoadError();
   assert.equal(view.skinLoadError.value, null);
-  assert.equal(storage.get("webspeak:skin-choice"), "builtin.light");
+  assert.equal(storage.get("webspeak:theme"), "light");
   assert.equal(runtime.getStoredSkinId(), "builtin.light");
 });
 

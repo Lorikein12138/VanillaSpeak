@@ -1,6 +1,6 @@
 <template>
   <!-- Host chrome is intentionally outside .ws-skin-root so a v3 surface
-       replacement cannot delete the recovery path or the authorization UI. -->
+       replacement cannot delete the recovery path. -->
   <Teleport to="body">
     <div class="ws-host-chrome" data-ws-host-chrome>
       <div
@@ -8,7 +8,7 @@
         class="ws-host-watermark"
         data-ws-part="host.watermark"
         aria-hidden="true"
-      >WebSpeak</div>
+      >VanillaSpeak</div>
 
       <p
         v-if="!isHostPartHidden('host.hint')"
@@ -52,6 +52,7 @@
         :title="copy.library"
         @click="openLibrary"
       >{{ copy.library }}</button>
+      <button v-if="thirdPartyAllowed" type="button" data-ws-recovery-action="disable" @click="setInstanceAuthorization(false)">{{ appearanceCopy(language).disable }}</button>
     </div>
   </Teleport>
 </template>
@@ -74,7 +75,8 @@ import {
   type HostOwnedLayer,
 } from "../services/host-owned-layer.js";
 import { shouldShowRecovery } from "../services/host-chrome-visibility.js";
-import { thirdPartyAllowed } from "../services/instance-authorization.js";
+import { appearanceCopy } from "../i18n/appearance.js";
+import { setInstanceAuthorization, thirdPartyAllowed } from "../services/instance-authorization.js";
 
 const props = withDefaults(defineProps<{ language: SiteLanguage; connected?: boolean; pluginLibraryAvailable?: boolean }>(), { connected: false });
 const copy = computed(() => hostChromeCopy[props.language] ?? hostChromeCopy.en);
@@ -92,7 +94,7 @@ const RECOVERY_LAYER_CSS = `
   gap: 4px;
   max-width: calc(100vw - 24px);
   padding: 4px 5px 4px 9px;
-  border: 1px solid #9db6b2;
+  border: 1px solid var(--control-border);
   border-radius: 999px;
   background: color-mix(in srgb, #ffffff 92%, transparent);
   color: #31524f;
@@ -104,23 +106,23 @@ const RECOVERY_LAYER_CSS = `
 .ws-host-recovery button {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
+  min-height: 38px;
   padding: 4px 9px;
   border: 1px solid #9db6b2;
   border-radius: 999px;
-  background: #fff;
-  color: #31524f;
+  background: var(--raised);
+  color: var(--ink);
   font: inherit;
   cursor: pointer;
   white-space: nowrap;
 }
 .ws-host-recovery button[data-ws-recovery-action="built-in"] {
-  border-color: #b45309;
-  background: #fff7ed;
-  color: #7c2d12;
+  border-color: var(--caution);
+  background: var(--surface);
+  color: var(--caution);
 }
 .ws-host-recovery button:hover { filter: brightness(.96); }
-.ws-host-recovery button:focus-visible { outline: 2px solid #4c8f88; outline-offset: 2px; }
+.ws-host-recovery button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .ws-host-recovery button { transition: none; } }
 `;
 
@@ -166,7 +168,11 @@ function onKeydown(event: KeyboardEvent) {
   if (isRecoveryShortcut(event)) {
     event.preventDefault();
     shortcutOpen.value = true;
-    void nextTick(() => recoveryPopover.value?.querySelector("button")?.focus());
+    void nextTick(() => {
+      if (!shortcutOpen.value || !thirdPartyAllowed.value) return;
+      syncPopover();
+      recoveryPopover.value?.querySelector<HTMLButtonElement>('[data-ws-recovery-action="built-in"]')?.focus();
+    });
     return;
   }
   if (event.key === "Escape" && shortcutOpen.value) shortcutOpen.value = false;
@@ -177,7 +183,7 @@ function refreshLauncherReachability() {
   launcherReachable.value = isHostPartVisuallyReachable("host.plugins.launcher");
 }
 
-watch([recoveryVisible, recoveryPopover], () => { void nextTick(syncPopover); }, { flush: "post" });
+watch([recoveryVisible, recoveryPopover], syncPopover, { flush: "post" });
 watch(thirdPartyAllowed, allowed => { if (!allowed) shortcutOpen.value = false; });
 
 onMounted(() => {

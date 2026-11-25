@@ -8,8 +8,7 @@ import { SKIN_RUNTIME_PLUGIN_DATA_PERMISSIONS } from "../../../src/shared/skin-r
 import SkinPluginOutlet from "./SkinPluginOutlet.js";
 import { approveSkinRuntimePlugin, getSkinRuntimePluginApproval, revokeSkinRuntimePluginApprovals } from "../services/skin-runtime-plugin-approval.js";
 import { PROMPT_FOR_SKIN_PERMISSIONS } from "../services/skin-permission-policy.js";
-import { canUseSkin, openInstanceAuthorization } from '../services/instance-authorization.js';
-import { useSkinEditorMode } from "../services/skin-editor-mode.js";
+import { canUseSkin } from '../services/instance-authorization.js';
 import { createSkinRuntimePluginSession } from "../services/skin-runtime-plugin-session.js";
 import { createSkinRuntimePluginWasmSandbox } from "../services/skin-runtime-plugin-wasm.js";
 import { skinRuntimePluginWasmGovernor } from "../services/skin-runtime-plugin-wasm-governor.js";
@@ -116,7 +115,6 @@ export default defineComponent({
     "restore-skin": () => true,
   },
   setup(props, { emit }) {
-    const editorMode = useSkinEditorMode();
     const digests = ref<Record<string, string>>({});
     const digestErrors = ref<Record<string, string>>({});
     const revision = ref(0);
@@ -299,10 +297,6 @@ export default defineComponent({
       revision.value += 1;
     }
 
-    function openManager(): void {
-      openInstanceAuthorization();
-    }
-
     function dispatch(pluginId: string, value: unknown): void {
       if (!value || typeof value !== "object") return;
       const input = (value as Record<string, unknown>).input;
@@ -313,14 +307,6 @@ export default defineComponent({
     function surfaceChanged(pluginId: string, active: boolean): void {
       if (active) surfaces.value.add(pluginId);
       else surfaces.value.delete(pluginId);
-      publishSurfaceState();
-    }
-
-    function toggleSurface(pluginId: string): void {
-      const next = new Set(suppressedSurfaces.value);
-      if (next.has(pluginId)) next.delete(pluginId);
-      else next.add(pluginId);
-      suppressedSurfaces.value = next;
       publishSurfaceState();
     }
 
@@ -352,7 +338,6 @@ export default defineComponent({
       if (!allowed) { stopAll('instance-authorization-revoked'); managerOpen.value = false; }
       else approvePending();
     }, { flush: 'sync' });
-    watch(editorMode.isEnabled, (enabled) => { if (!enabled) managerOpen.value = false; });
     watch(() => props.context, () => {
       if (disposed) return;
       if (contextRefreshTimer !== undefined) window.clearTimeout(contextRefreshTimer);
@@ -406,34 +391,8 @@ export default defineComponent({
         nodes.push(mountTarget ? h(Teleport, { to: mountTarget }, [layoutRoot]) : layoutRoot);
       }
 
-      const controls: VNodeChild[] = [];
-      if (currentPlugins.length && editorMode.isEnabled.value) {
-        controls.push(h(Teleport, { to: "body" }, [h("button", {
-          type: "button",
-          class: "ws-plugin-access-toggle",
-          "aria-label": "管理运行时插件权限 / Manage runtime plugin access",
-          onClick: openManager,
-        }, "插件权限 / Plugin access")]));
-      }
-      for (const plugin of currentPlugins) {
-        if (!editorMode.isEnabled.value || plugin.mode !== "surface" || !outputs.value[plugin.id]) continue;
-        const suppressed = suppressedSurfaces.value.has(plugin.id);
-        controls.push(h(Teleport, { to: "body" }, [h("button", {
-          type: "button",
-          class: "ws-plugin-surface-recovery",
-          "aria-label": suppressed ? "恢复自定义界面 / Restore custom interface" : "返回 WebSpeak 标准界面 / Return to built-in interface",
-          onClick: () => toggleSurface(plugin.id),
-        }, suppressed ? "恢复自定义界面 / Restore custom UI" : "标准界面 / Built-in UI")]));
-        controls.push(h(Teleport, { to: "body" }, [h("button", {
-          type: "button",
-          class: "ws-plugin-surface-reset",
-          "aria-label": "恢复内置皮肤 / Restore the built-in skin",
-          onClick: () => emit("restore-skin"),
-        }, "恢复内置皮肤 / Reset skin")]));
-      }
-
       const showConsent = (PROMPT_FOR_SKIN_PERMISSIONS && pending.value.length > 0) || managerOpen.value;
-      if (!showConsent) return h("div", { class: "ws-runtime-plugin-host" }, [...nodes, ...controls]);
+      if (!showConsent) return h("div", { class: "ws-runtime-plugin-host" }, [...nodes]);
 
       const showApproval = PROMPT_FOR_SKIN_PERMISSIONS && pending.value.length > 0;
       const listed = showApproval ? pending.value : currentPlugins;
@@ -469,7 +428,7 @@ export default defineComponent({
             ]),
         ]),
       ])]);
-      return h("div", { class: "ws-runtime-plugin-host" }, [...nodes, ...controls, consent]);
+      return h("div", { class: "ws-runtime-plugin-host" }, [...nodes, consent]);
     };
   },
 });

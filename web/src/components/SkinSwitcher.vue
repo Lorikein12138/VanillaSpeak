@@ -1,5 +1,5 @@
 <template>
-  <div ref="root" class="skin-switcher" :class="{ open }" @keydown.esc="close">
+  <div ref="root" class="skin-switcher" :class="{ open }" @keydown.esc.stop="dismiss" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
     <button
       type="button"
       class="skin-trigger"
@@ -35,23 +35,13 @@
         <span>{{ option.label }}</span>
         <Icon v-if="modelValue === option.value" name="check" :size="14" />
       </button>
-      <button type="button" class="skin-option skin-authorization" role="option" :aria-selected="false" @click="authorization">
-        <Icon name="shield" :size="16" /><span>{{ authorizationCopy.menu }}</span><small>{{ thirdPartyAllowed ? authorizationCopy.enabled : authorizationCopy.disabled }}</small>
-      </button>
-      <button v-if="thirdPartyAllowed && pluginLibraryAvailable" type="button" class="skin-option skin-library" data-ws-part="skin.library" role="option" :aria-selected="false" @click="openLibrary">
-        <Icon name="grid" :size="16" /><span>{{ libraryLabel }}</span>
-      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import Icon from "./Icon.vue";
-import { authorizationLanguage, canUseSkin, openInstanceAuthorization, thirdPartyAllowed } from '../services/instance-authorization.js';
-import { instanceAuthorizationCopy } from '../i18n/instance-authorization.js';
-import { hostChromeCopy } from '../i18n/host-chrome.js';
-import { openPluginLibrary } from '../services/host-chrome.js';
 
 export interface SkinOption {
   value: string;
@@ -63,7 +53,6 @@ const props = defineProps<{
   modelValue: string;
   menuLabel: string;
   options: SkinOption[];
-  pluginLibraryAvailable?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -71,11 +60,7 @@ const emit = defineEmits<{
   change: [value: string];
 }>();
 
-const options = computed(() => props.options.filter(option => canUseSkin(option.value)));
-const authorizationCopy = computed(() => instanceAuthorizationCopy[authorizationLanguage.value]);
-const libraryLabel = computed(() => hostChromeCopy[authorizationLanguage.value]?.library ?? hostChromeCopy.en.library);
-function authorization() { close(); openInstanceAuthorization(); }
-function openLibrary() { close(); openPluginLibrary(); }
+const options = computed(() => props.options.filter(({ value }) => value === "builtin.light" || value === "builtin.dark"));
 const selectedOption = computed(() => options.value.find((option) => option.value === props.modelValue) ?? options.value[0] ?? {
   value: props.modelValue,
   label: props.menuLabel,
@@ -90,8 +75,26 @@ function close() { open.value = false; }
 function select(value: string) {
   emit("update:modelValue", value);
   emit("change", value);
-  close();
+  dismiss();
 }
+function dismiss() {
+  if (!open.value) return;
+  close();
+  root.value?.querySelector<HTMLButtonElement>(".skin-trigger")?.focus();
+}
+
+async function move(direction: number) {
+  if (!open.value) {
+    open.value = true;
+    await nextTick();
+  }
+  const items = [...(root.value?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [])];
+  if (!items.length) return;
+  const focused = items.indexOf(document.activeElement as HTMLButtonElement);
+  const index = focused < 0 ? (direction > 0 ? 0 : items.length - 1) : (focused + direction + items.length) % items.length;
+  items[index]?.focus();
+}
+
 function onDocumentPointerDown(event: PointerEvent) {
   if (root.value && !root.value.contains(event.target as Node)) close();
 }
@@ -101,158 +104,30 @@ onUnmounted(() => document.removeEventListener("pointerdown", onDocumentPointerD
 </script>
 
 <style scoped>
-.skin-switcher {
-  position: relative;
-  z-index: 20;
-  flex: 0 0 auto;
-  color: var(--text-muted);
-}
-.skin-authorization{margin-top:6px;border-top:1px solid #8bdad8!important}
-.skin-authorization small{margin-left:auto;font-size:10px;opacity:.75}
-.skin-library{opacity:.9}
-
-.skin-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-width: 34px;
-  min-height: 32px;
-  padding: 0 8px;
-  color: #08766f;
-  background: rgba(250, 254, 255, .94);
-  border: 1px solid #c8e6e1;
-  border-radius: 8px;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 700;
+.skin-switcher { position: relative; flex: none; color: var(--ink); }
+.skin-switcher.open { z-index: 52; }
+.skin-trigger, .skin-option {
+  display: inline-flex; gap: 6px; align-items: center; justify-content: center;
+  min-height: 38px; padding: 6px 9px; border: 1px solid var(--control-border);
+  border-radius: 8px; background: var(--surface); color: var(--ink);
+  font: 600 14px/1.25 var(--body-font);
   white-space: nowrap;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(8, 126, 134, .08);
-  transition: color .16s, background .16s, border-color .16s, box-shadow .16s;
 }
-
-.skin-trigger:hover,
-.skin-switcher.open .skin-trigger {
-  color: #056e76;
-  background: #edfafa;
-  border-color: #8fd7d9;
-  box-shadow: 0 6px 16px rgba(30, 170, 184, .14);
+.skin-trigger:hover, .skin-option:hover, .skin-option[aria-selected="true"] {
+  background: var(--selected); color: var(--action);
 }
-
-.skin-trigger > .ui-icon:last-child { margin-left: 1px; }
-
 .skin-dropdown {
-  position: absolute;
-  top: calc(100% + 7px);
-  right: 0;
-  display: grid;
-  gap: 3px;
-  min-width: 176px;
-  padding: 6px;
-  color: #123849;
-  background: linear-gradient(145deg, rgba(250, 255, 255, .99), rgba(232, 249, 250, .98));
-  border: 1px solid rgba(104, 196, 211, .58);
-  border-radius: 11px;
-  box-shadow: 0 18px 42px rgba(29, 115, 139, .2), inset 0 1px 0 rgba(255, 255, 255, .96);
-  backdrop-filter: blur(18px) saturate(1.12);
+  position: absolute; top: calc(100% + 7px); right: 0; display: grid; gap: 4px;
+  min-width: 156px; max-width: calc(100vw - 32px); padding: 6px;
+  color: var(--ink); background: var(--raised); border: 1px solid var(--rule);
+  border-radius: 8px; box-shadow: var(--popover-shadow);
 }
-
 .skin-option {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 36px;
-  padding: 0 9px;
-  color: #123849;
-  background: linear-gradient(112deg, rgba(255, 255, 255, .96), rgba(225, 250, 249, .96), rgba(188, 241, 237, .94), rgba(255, 255, 255, .96));
-  background-size: 240% 100%;
-  border: 1px solid rgba(139, 218, 216, .46);
-  border-radius: 7px;
-  font: inherit;
-  font-size: 11px;
-  text-align: left;
-  cursor: pointer;
-  animation: skin-option-gradient 8s ease-in-out infinite alternate;
-  transition: color .18s, border-color .18s, box-shadow .18s, background-position .4s ease;
+  display: flex; justify-content: flex-start; width: 100%; color: var(--ink);
+  border-color: transparent; background: transparent; text-align: start;
 }
-
-.skin-option > .ui-icon:first-child { color: #64858a; }
-.skin-option > .ui-icon:last-child { margin-left: auto; color: #087e86; }
-.skin-option:hover,
-.skin-option:focus-visible {
-  color: #087e86;
-  border-color: rgba(57, 195, 193, .74);
-  background-position: 100% 50%;
-  box-shadow: 0 4px 13px rgba(43, 179, 181, .16), inset 0 0 0 1px rgba(255, 255, 255, .84);
-}
-
-.skin-option.selected {
-  color: #056f73;
-  border-color: rgba(44, 183, 181, .78);
-  background-image: linear-gradient(112deg, #faffff 0%, #c8f5f1 36%, #82e2dc 70%, #d9fbf8 100%);
-  background-position: 100% 50%;
-  box-shadow: 0 5px 16px rgba(37, 170, 171, .22), inset 0 0 0 1px rgba(255, 255, 255, .94), inset 0 -1px 0 rgba(31, 164, 163, .12);
-}
-
-.skin-option.selected > .ui-icon:first-child,
-.skin-option.selected > .ui-icon:last-child { color: #087e86; }
-
-@keyframes skin-option-gradient {
-  from { background-position: 0% 50%; }
-  to { background-position: 100% 50%; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skin-option { animation: none; }
-}
-
-@media (max-width: 520px) {
-  .skin-trigger { min-height: 36px; }
-  .skin-dropdown { min-width: 190px; }
-}
-
-.skin-switcher.mobile-skin-switcher .skin-trigger {
-  width: 100%;
-  min-height: 44px;
-  justify-content: flex-start;
-  padding-inline: 12px;
-  font-size: 12px;
-}
-
-@media (max-width: 420px) {
-  .skin-switcher.join-skin-switcher .skin-trigger {
-    width: 28px;
-    min-width: 28px;
-    min-height: 28px;
-    padding: 0;
-  }
-
-  .skin-switcher.join-skin-switcher .skin-trigger > span,
-  .skin-switcher.join-skin-switcher .skin-trigger > .ui-icon:last-child { display: none; }
-}
-
-@media (max-width: 740px) {
-  .skin-switcher.mobile-skin-switcher .skin-dropdown {
-    position: static;
-    width: 100%;
-    min-width: 0;
-    max-height: min(45vh, 280px);
-    margin-top: 8px;
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-}
-
-@media (max-width: 740px) {
-  .skin-switcher.mobile-skin-switcher .skin-dropdown {
-    position: static;
-    width: 100%;
-    min-width: 0;
-    max-height: min(45vh, 280px);
-    margin-top: 8px;
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
+.skin-option span { flex: 1; }
+@media (max-width: 899px) {
+  .skin-trigger, .skin-option { min-height: 44px; }
 }
 </style>

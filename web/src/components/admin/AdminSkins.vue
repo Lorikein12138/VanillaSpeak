@@ -98,7 +98,7 @@
             v-if="skin.builtIn"
             class="skin-builtin-badge"
             >{{ tr("skinBuiltin") }}</b
-          ></div
+          ><b v-else class="skin-builtin-badge">{{ tr("skinInstalledTab") }}</b></div
         >
         <div class="skin-library-copy"
           ><div class="skin-library-title"

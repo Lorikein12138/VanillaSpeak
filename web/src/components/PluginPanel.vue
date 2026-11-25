@@ -26,7 +26,7 @@
       <section v-show="visible" ref="windowElement" class="ws-plugin-window" data-ws-part="host.plugins.overlay" :class="{ 'is-maximized': maximized, 'is-dragging': dragging }" :style="position" role="dialog" :aria-label="current && appView ? current.manifest.name : tr('title')" tabindex="-1" @keydown.esc.stop="minimize">
         <header class="ws-plugin-titlebar" @pointerdown="startDrag" @lostpointercapture="endDrag" @dblclick="toggleMaximize">
           <span class="ws-plugin-mark" aria-hidden="true">◈</span>
-          <div class="ws-plugin-window-title"><strong>{{ current && appView ? current.manifest.name : tr('title') }}</strong><small>WebSpeak</small></div>
+          <div class="ws-plugin-window-title"><strong>{{ current && appView ? current.manifest.name : tr('title') }}</strong><small>VanillaSpeak</small></div>
           <div class="ws-plugin-window-controls" @pointerdown.stop @dblclick.stop>
             <button type="button" :title="ui.minimize" :aria-label="ui.minimize" @click="minimize"><svg viewBox="0 0 24 24"><path d="M5 17h14" /></svg></button>
             <button type="button" :title="maximized ? ui.restore : ui.maximize" :aria-label="maximized ? ui.restore : ui.maximize" @click="toggleMaximize"><svg viewBox="0 0 24 24"><path :d="maximized ? 'M8 4h12v12M4 8h12v12H4z' : 'M5 5h14v14H5z'" /></svg></button>

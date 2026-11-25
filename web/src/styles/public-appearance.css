@@ -1,0 +1,139 @@
+:global(html[data-ws-route="webclient"] body) { font-family: var(--body-font); }
+.web-client {
+  --client-height: calc(var(--ws-viewport-height, 100dvh) / var(--ui-scale, 1) - var(--product-header-height));
+  --surface-0: var(--canvas);
+  --surface-1: var(--surface);
+  --surface-2: var(--sunken);
+  --text-primary: var(--ink);
+  --text-muted: var(--muted);
+  --accent: var(--action);
+  --border: var(--rule);
+  --success: var(--good);
+  --warning: var(--caution);
+  --danger: var(--bad);
+  height: var(--client-height);
+  max-height: var(--client-height);
+  min-height: 0;
+}
+.web-client .join-page {
+  height: var(--client-height);
+  max-height: var(--client-height);
+  min-height: 0;
+  overflow: auto;
+  background: var(--canvas);
+}
+.join-page .join-copy h1 {
+  font: 600 46px/1.14 var(--heading-font);
+  letter-spacing: -.02em;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+.join-page .join-description { color: var(--muted); font: 16px/1.55 var(--body-font); max-width: 62ch; white-space: pre-wrap; overflow-wrap: anywhere; }
+.instance-name { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.join-page .join-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  box-shadow: none;
+}
+.join-page .join-card::before, .join-page .join-card::after { display: none; }
+.join-page .join-card h2 { font: 600 26px/1.25 var(--heading-font); color: var(--ink); }
+.join-page .card-lead { color: var(--muted); font-size: 16px; }
+.join-page .join-footer { border-top: 1px solid var(--rule); color: var(--muted); }
+.join-page .clear-local-button { color: var(--action); }
+.gateway-notice { color: var(--muted); margin: 8px 0; }
+.gateway-notice.appearance-error { color: var(--bad); }
+.join-card :deep(.field-wrap), .join-card :deep(select), .join-card :deep(.identity-button) {
+  min-height: 44px;
+  background: var(--raised);
+  color: var(--ink);
+  border-color: var(--control-border);
+  border-radius: 8px;
+}
+.join-card :deep(input), .join-card :deep(select) { font-size: 16px; color: var(--ink); }
+.join-card :deep(label), .join-card :deep(.field-label) { color: var(--ink); }
+.join-card :deep(input::placeholder) { color: var(--muted); }
+.join-card :deep(.identity-options summary) { color: var(--action); }
+.join-card :deep(.identity-warning) { color: var(--caution); }
+.join-page .primary-button, .join-page .join-button,
+:deep(.voice-connection-status button), :deep(.send-button) {
+  min-height: 44px;
+  border-radius: 8px;
+  background: var(--action);
+  color: var(--on-action);
+}
+.join-page .primary-button:hover, .join-page .join-button:hover, :deep(.send-button:hover) { background: var(--action-hover); }
+.join-page .primary-button:disabled, .join-page .join-button:disabled, :deep(.send-button:disabled) { background: var(--sunken); color: var(--muted); opacity: 1; border: 1px solid var(--rule); }
+
+.web-client .app-shell { height: var(--client-height); max-height: var(--client-height); background: var(--canvas); }
+.app-shell :deep(.workspace), .app-shell .workspace-header, .app-shell :deep(.member-panel),
+.app-shell :deep(.voice-card), .app-shell :deep(.chat-panel) { background: var(--surface); border-color: var(--rule); color: var(--ink); box-shadow: none; }
+.app-shell .room-hero { color: var(--ink); background: var(--canvas); border: 1px solid var(--rule); border-radius: 8px; box-shadow: none; }
+.app-shell .room-hero h1, .app-shell .section-heading h2 { font: 600 26px/1.25 var(--heading-font); color: var(--ink); }
+.app-shell :deep(.message-composer), .app-shell :deep(.member-search), .app-shell :deep(.settings-select) {
+  border-color: var(--control-border); background: var(--raised); color: var(--ink);
+}
+.app-shell :deep(.message-composer input) { min-height: 44px; color: var(--ink); }
+.app-shell :deep(.message-list) { min-width: 0; overflow-wrap: anywhere; }
+.app-shell :deep(.voice-card[data-ws-speaking="true"]) { background: var(--selected); border-color: var(--good); }
+.app-shell :deep(.voice-avatar.speaking) { box-shadow: 0 0 0 2px var(--good); }
+.app-shell :deep(.voice-bottom), .app-shell :deep(.audio-dock) { color: var(--ink); background: var(--surface); border-color: var(--rule); }
+:deep(.settings-modal), :deep(.dialog-card), :deep(.member-actions-menu) { color: var(--ink); background: var(--raised); border-color: var(--rule); box-shadow: var(--popover-shadow); }
+:deep(.settings-modal h2), :deep(.dialog-card h2) { font-family: var(--heading-font); }
+/* Keep the fixed overlay above both the workspace and product headers. */
+:deep(.audio-settings-backdrop) { z-index: 60; }
+:deep(.microphone-toggle:not(.muted)) { color: var(--on-action); }
+.web-client :deep(.microphone-toggle:focus-visible),
+.join-card :deep(.identity-options summary:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+@media (min-width: 741px) {
+  /* Account for the product header in the desktop timeline's minimum height. */
+  .app-shell .workspace-chat :deep(.message-list) {
+    min-height: clamp(120px, calc(20dvh - var(--product-header-height) / 2), 220px);
+  }
+}
+.workspace-connection-status { top: calc(var(--product-header-height) + 8px); }
+@media (max-width: 899px) {
+  .join-page .join-copy h1 { font-size: 32px; line-height: 1.22; margin-bottom: 12px; }
+  .app-shell :deep(.workspace-chat .message-list) { min-height: 52px; }
+  .app-shell :deep(.message-composer input) { font-size: 16px; }
+}
+
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-copy h1 { font-size: 46px; line-height: 1.14; text-shadow: none; }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-card { background: var(--surface); box-shadow: none; }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-card :deep(.field-wrap) { border: 1px solid var(--control-border); background: var(--raised); box-shadow: none; }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-card :deep(.field-wrap:focus-within) { border-color: var(--focus); }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-card :deep(.field-wrap input:focus-visible) { outline: none; }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-card :deep(.field-wrap:has(input:focus-visible)) { outline: 2px solid var(--focus); outline-offset: 3px; }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-card :deep(.field-label) { color: var(--ink); font-size: 14px; }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-card :deep(.connect-button) { color: var(--on-action); background: var(--action); box-shadow: none; }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-card :deep(.connect-button:disabled) { color: var(--muted); background: var(--sunken); opacity: 1; }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-card :deep(.connect-button:hover:not(:disabled)) { background: var(--action-hover); }
+.web-client.ws-skin-root .join-footer { font-size: 13px; gap: 8px; }
+@media (max-width: 899px) {
+  .web-client.ws-skin-root[data-ws-skin^="builtin."] .join-page .join-copy h1 { font-size: 32px; line-height: 1.22; }
+}
+
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .app-shell :deep([data-ws-part="voice.member.status"]) { color: var(--muted); }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .app-shell :deep([data-ws-speaking="true"] [data-ws-part="voice.member.status"]) { color: var(--good); }
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .app-shell :deep([data-ws-part="voice.chat.tab"]) {
+  background: var(--raised);
+  border-color: var(--rule);
+  color: var(--ink);
+}
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .app-shell :deep([data-ws-part="voice.chat.tab"][aria-selected="true"]) {
+  background: var(--selected);
+  color: var(--action);
+}
+.web-client.ws-skin-root[data-ws-skin^="builtin."] .mobile-brand { color: var(--ink); }
+
+@media (max-width: 740px) and (max-height: 460px) {
+  .app-shell.mobile-view-chat .workspace-scroll { overflow-y: auto; }
+  .app-shell.mobile-view-chat .workspace-content { height: auto; min-height: 100%; }
+  .app-shell.mobile-view-chat :deep(.workspace-chat) { flex: 1 0 auto; }
+}
+.web-client.keyboard-open .app-shell.mobile-view-chat .workspace-scroll { overflow-y: auto; }
+.web-client.keyboard-open .app-shell.mobile-view-chat .workspace-content { height: auto; min-height: 100%; }
+.web-client.keyboard-open .app-shell.mobile-view-chat :deep(.workspace-chat) { flex: 1 0 auto; }

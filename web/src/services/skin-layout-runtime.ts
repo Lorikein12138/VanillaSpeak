@@ -8,13 +8,6 @@ import {
   type SkinLayoutPlacement,
   type SkinLayoutProfile,
 } from "../../../src/shared/skin-layout.js";
-import {
-  clearSkinLayoutOverrides,
-  loadSkinLayoutOverrides,
-  saveSkinLayoutOverrides,
-  updateSkinLayoutOverride,
-} from "./skin-layout-storage.js";
-
 const STYLE_ID = "webspeak-layout-runtime";
 const MOBILE_QUERY = "(max-width: 740px)";
 const TABLET_QUERY = "(min-width: 741px) and (max-width: 1100px)";
@@ -30,11 +23,6 @@ let activePackageSkinId: string | null = null;
 let activePackageLayout: SkinLayoutDocument | null = null;
 let observer: MutationObserver | null = null;
 let refreshFrame = 0;
-let editorEnabled = false;
-let selectedComponentId: string | null = null;
-let previewComponentId: string | null = null;
-let previewPlacement: SkinLayoutPlacement | null = null;
-let previewScope = "";
 
 function isLayoutPage(value: string | undefined): value is SkinLayoutPage {
   return value === "home" || value === "voice" || value === "demo";
@@ -66,15 +54,7 @@ function effectivePlacements(context: ActiveSkinLayoutContext): Record<string, S
   const packageEntries = activePackageSkinId === context.skinId
     ? activePackageLayout?.pages[context.page]?.[context.profile] ?? {}
     : {};
-  const userEntries = loadSkinLayoutOverrides(context.skinId).pages[context.page]?.[context.profile] ?? {};
-  const result: Record<string, SkinLayoutPlacement> = {};
-  for (const [id, placement] of Object.entries(packageEntries)) result[id] = { ...placement };
-  for (const [id, placement] of Object.entries(userEntries)) result[id] = { ...result[id], ...placement };
-  const scope = context.skinId + ":" + context.page + ":" + context.profile;
-  if (previewComponentId && previewPlacement && previewScope === scope) {
-    result[previewComponentId] = { ...result[previewComponentId], ...previewPlacement };
-  }
-  return result;
+  return packageEntries;
 }
 
 function setVariable(element: HTMLElement, dataFlag: string, variable: string, value: string | undefined): void {
@@ -149,10 +129,7 @@ function applyRoot(root: HTMLElement): void {
     setVariable(element, "wsLayoutBackground", "--ws-layout-background", placement.background);
     setVariable(element, "wsLayoutBorder", "--ws-layout-border", placement.border);
     setVariable(element, "wsLayoutRadius", "--ws-layout-radius", placement.radius === undefined ? undefined : placement.radius + "px");
-    if (editorEnabled && selectedComponentId === id) element.dataset.wsLayoutSelected = "true";
-    else delete element.dataset.wsLayoutSelected;
   }
-  root.dataset.wsLayoutEditing = editorEnabled ? "true" : "false";
 }
 
 export function refreshSkinLayout(): void {
@@ -192,66 +169,6 @@ export function initializeSkinLayoutRuntime(): void {
 export function setSkinLayoutPackage(skinId: string, layout: SkinLayoutDocument | null): void {
   activePackageSkinId = skinId;
   activePackageLayout = layout;
-  previewComponentId = null;
-  previewPlacement = null;
-  previewScope = "";
-  scheduleRefresh();
-}
-
-export function setSkinLayoutEditorState(enabled: boolean, selectedId: string | null = selectedComponentId): void {
-  editorEnabled = enabled;
-  selectedComponentId = enabled ? selectedId : null;
-  scheduleRefresh();
-}
-
-export function getEffectiveSkinLayoutPlacement(componentIdValue: string): SkinLayoutPlacement | undefined {
-  const context = getActiveSkinLayoutContext();
-  if (!context || !getSkinLayoutComponent(componentIdValue, context.page)?.editable) return undefined;
-  return effectivePlacements(context)[componentIdValue];
-}
-
-export function getActiveSkinLayoutOverride(componentIdValue: string): SkinLayoutPlacement | undefined {
-  const context = getActiveSkinLayoutContext();
-  if (!context || !getSkinLayoutComponent(componentIdValue, context.page)?.editable) return undefined;
-  return loadSkinLayoutOverrides(context.skinId).pages[context.page]?.[context.profile]?.[componentIdValue];
-}
-
-export function previewActiveSkinLayoutPlacement(componentIdValue: string, placement: SkinLayoutPlacement | null): void {
-  const context = getActiveSkinLayoutContext();
-  previewComponentId = context && placement ? componentIdValue : null;
-  previewPlacement = context ? placement : null;
-  previewScope = context ? context.skinId + ":" + context.page + ":" + context.profile : "";
-  scheduleRefresh();
-}
-
-export function saveActiveSkinLayoutPlacement(componentIdValue: string, placement: SkinLayoutPlacement | null): void {
-  const context = getActiveSkinLayoutContext();
-  if (!context) throw new Error("There is no active public skin layout.");
-  previewComponentId = null;
-  previewPlacement = null;
-  previewScope = "";
-  updateSkinLayoutOverride(context.skinId, context.page, context.profile, componentIdValue, placement);
-  scheduleRefresh();
-}
-
-export function getActiveSkinLayoutOverrides(): SkinLayoutDocument {
-  const context = getActiveSkinLayoutContext();
-  return context ? loadSkinLayoutOverrides(context.skinId) : { schemaVersion: 1, pages: {} };
-}
-
-export function replaceActiveSkinLayoutOverrides(layout: SkinLayoutDocument): void {
-  const context = getActiveSkinLayoutContext();
-  if (!context) throw new Error("There is no active public skin layout.");
-  saveSkinLayoutOverrides(context.skinId, layout);
-  scheduleRefresh();
-}
-
-export function clearActiveSkinLayoutOverrides(): void {
-  const context = getActiveSkinLayoutContext();
-  if (!context) return;
-  previewComponentId = null;
-  previewPlacement = null;
-  previewScope = "";
-  clearSkinLayoutOverrides(context.skinId);
-  scheduleRefresh();
+  if (layout) initializeSkinLayoutRuntime();
+  refreshSkinLayout();
 }

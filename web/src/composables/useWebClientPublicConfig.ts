@@ -1,4 +1,5 @@
-import { computed, reactive, ref, type Ref } from "vue";
+import { PRODUCT_NAME } from "../../../src/shared/product.js";
+import { computed, onScopeDispose, reactive, ref, type Ref } from "vue";
 import { DEFAULT_TEAM_SPEAK_PORT, splitTeamSpeakTarget } from "../services/teamspeak-target.js";
 import { APP_VERSION } from "../services/app-version.js";
 import { setInstanceHiddenParts } from "../services/host-chrome.js";
@@ -29,22 +30,31 @@ export function useWebClientPublicConfig({
   const accessMode = ref<"fixed" | "open">("fixed");
   const initialized = ref(false);
   const mobileMode = ref(false);
-  const siteName = ref("WebSpeak");
+  const siteName = ref(PRODUCT_NAME);
   const appVersion = ref(APP_VERSION);
   const visitorNumber = ref<number | null>(null);
   const visitorTotal = ref<number | null>(null);
   const accelerationRelays = ref<RelayOption[]>([]);
   const openTargetPrefillBlocked = ref(false);
   const serverConfigLoading = ref(true);
+  const serverConfigUnavailable = ref(false);
+  let pending: AbortController | undefined;
+  onScopeDispose(() => pending?.abort());
   const welcomeTexts = reactive<Record<Language, string>>({ zh: "", en: "", de: "", ru: "", ja: "" });
   const accelerationAvailable = computed(() => accelerationRelays.value.length > 0);
   const localizedWelcomeText = computed(() => welcomeTexts[language.value] || t("joinDescription"));
 
   async function loadPublicConfig(): Promise<void> {
+    pending?.abort();
+    const operation = new AbortController();
+    pending = operation;
+    serverConfigLoading.value = true;
+    serverConfigUnavailable.value = false;
+    const signal = AbortSignal.any([operation.signal, AbortSignal.timeout(10_000)]);
     const query = new URLSearchParams(location.search);
     try {
-      const response = await fetch("/api/public-config", { headers: { accept: "application/json" } });
-      if (!response.ok) return;
+      const response = await fetch("/api/public-config", { headers: { accept: "application/json" }, signal });
+      if (!response.ok) throw new Error("Public configuration unavailable");
       const config = await response.json() as {
         version?: unknown;
         initialized?: unknown;
@@ -61,6 +71,9 @@ export function useWebClientPublicConfig({
         accelerationRelays?: unknown;
         hiddenHostParts?: unknown;
       };
+      signal.throwIfAborted();
+      if (pending !== operation) return;
+      if (!config || typeof config.initialized !== "boolean") throw new Error("Invalid public configuration");
       setInstanceHiddenParts(Array.isArray(config.hiddenHostParts)
         ? config.hiddenHostParts.filter((part): part is string => typeof part === "string")
         : []);
@@ -101,9 +114,12 @@ export function useWebClientPublicConfig({
         serverPort.value = target.port;
       }
     } catch {
-      // Keep joining disabled until the gateway confirms its initialized policy.
+      if (pending === operation && !operation.signal.aborted) {
+        initialized.value = false;
+        serverConfigUnavailable.value = true;
+      }
     } finally {
-      serverConfigLoading.value = false;
+      if (pending === operation && !operation.signal.aborted) serverConfigLoading.value = false;
     }
   }
 
@@ -119,6 +135,7 @@ export function useWebClientPublicConfig({
     openTargetPrefillBlocked,
     accelerationAvailable,
     serverConfigLoading,
+    serverConfigUnavailable,
     localizedWelcomeText,
     loadPublicConfig,
   };

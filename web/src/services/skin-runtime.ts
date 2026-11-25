@@ -1,9 +1,10 @@
+import { RETIRED_KAAK_ID } from "../../../src/shared/skin-catalog.js";
 import { getInstalledSkin, saveInstalledSkin } from "./local-persistence.js";
 import { APP_VERSION } from "./app-version.js";
 import type { InstalledSkin } from "./skin-pack.js";
 import { applyTheme, getBuiltinSkinCss, getStoredTheme, isDarkTheme } from "./theme.js";
 import { scopeBuiltinThemeForCustomSkin } from "./skin-cascade.js";
-import { getBundledSkinPackageUrl, isPublicSkinEnabled } from "./skin-catalog.js";
+import { isInstanceSkinDisabled, isPublicSkinEnabled } from "./skin-catalog.js";
 import { createSkinOperation, type SkinLoadOptions } from "./skin-operation.js";
 import { setSkinLayoutPackage } from "./skin-layout-runtime.js";
 import { canUseSkin } from './instance-authorization.js';
@@ -63,15 +64,16 @@ async function prepareAndActivate(id: string, expectedVersion: string | undefine
     storeSkinId(id);
     return null;
   }
-  if (!isPublicSkinEnabled(id)) {
+  let skin = await operation.wait(getInstalledSkin(id));
+  if (isInstanceSkinDisabled(id) || (!isPublicSkinEnabled(id) && skin?.source !== "local")) {
     if (typeof localStorage !== "undefined") localStorage.removeItem("webspeak:skin-choice");
     return fallBackToBuiltin();
   }
 
-  let skin = await operation.wait(getInstalledSkin(id));
+  if (id === RETIRED_KAAK_ID && !skin?.source) skin = null;
   if (!skin || (expectedVersion && skin.version !== expectedVersion)) {
     try {
-      const packageUrl = getBundledSkinPackageUrl(id) ?? `/api/skins/${encodeURIComponent(id)}/package`;
+      const packageUrl = `/api/skins/${encodeURIComponent(id)}/package`;
       const response = await operation.wait(fetch(packageUrl, { cache: "no-cache", signal: operation.signal }));
       if (!response.ok) throw new Error("Skin package is no longer available.");
       const archive = await operation.wait(response.blob());
@@ -80,11 +82,11 @@ async function prepareAndActivate(id: string, expectedVersion: string | undefine
       const downloaded = await operation.wait(importSkinPack(file));
       if (downloaded.id !== id) throw new Error("Skin package ID does not match its catalog entry.");
       if (expectedVersion && downloaded.version !== expectedVersion) throw new Error("Skin package version does not match its catalog entry.");
-      skin = downloaded;
-      await operation.wait(saveInstalledSkin(downloaded, operation.signal).catch(() => undefined));
+      skin = { ...downloaded, source: "instance" };
+      await operation.wait(saveInstalledSkin(skin, operation.signal).catch(() => undefined));
     } catch {
       operation.check();
-      if (!skin) return fallBackToBuiltin();
+      if (!skin || (expectedVersion && skin.version !== expectedVersion)) return fallBackToBuiltin();
     }
   }
 
