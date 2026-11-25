@@ -1,0 +1,42 @@
+# Licenses for skin-wasm-interpreter.wasm
+
+The bundled WebAssembly module is the WebSpeak v0.3.2 interpreter. The Rust
+source, lockfile, and build toolchain are in web/skin-wasm-interpreter/ in the
+source repository. Artifact SHA-256:
+74d9c4b01989e636b6ae5515888848e87b25818a213c8d9f5e795f95005f88b6
+
+- wasmi, wasmi_collections, wasmi_core, and wasmi_ir 2.0.0: MIT or
+  Apache-2.0. See Wasmi-2.0.0-MIT.txt (including Robin Freyler's copyright)
+  and Wasmi-2.0.0-Apache-2.0.txt. Upstream:
+  https://github.com/wasmi-labs/wasmi/tree/2970aa871cc1001b57b267ccecdcd1e42306199e
+- wasmparser 0.228.0: Apache-2.0 is used here. Its upstream distribution also
+  offers MIT and Apache-2.0 with the LLVM exception. See
+  wasmparser-0.228.0-Apache-2.0.txt. Source notices: Copyright 2017 Mozilla
+  Foundation, Copyright 2018 Mozilla Foundation, Copyright 2019 Mozilla
+  Foundation, Copyright 2020 Mozilla Foundation, Copyright 2024 Mozilla
+  Foundation. Upstream:
+  https://github.com/bytecodealliance/wasm-tools/tree/e66235859a6ec0502bf6f9dcc358953eda4cafcc/crates/wasmparser
+- spin 0.9.9: MIT. See spin-0.9.9-MIT.txt.
+  https://crates.io/crates/spin/0.9.9
+- bitflags 2.13.2: MIT is used here. See bitflags-2.13.2-MIT.txt.
+  https://crates.io/crates/bitflags/2.13.2
+- libm 0.2.16: MIT. The published license and its additional upstream
+  acknowledgments are included as libm-0.2.16-LICENSE.txt. libm is a locked
+  Wasmi dependency. The std build selects Wasmi's Rust float methods and
+  the checked-in artifact does not expose libm-specific symbols.
+  https://crates.io/crates/libm/0.2.16
+- Rust 1.99.0 runtime (std, core, alloc and panic support): see
+  Rust-1.99.0-COPYRIGHT.txt, Rust-1.99.0-MIT.txt and
+  Rust-1.99.0-Apache-2.0.txt. Rust's Unicode tables use
+  Rust-1.99.0-Unicode-3.0.txt.
+  https://github.com/rust-lang/rust/tree/1.99.0/library
+- Rust 1.99.0 compiler-builtins: MIT AND Apache-2.0 with the LLVM exception.
+  See compiler-builtins-Rust-1.99.0-LICENSE.txt for both terms, the LLVM
+  exception, and upstream attributions.
+  https://github.com/rust-lang/rust/tree/1.99.0/library/compiler-builtins
+- dlmalloc 0.2.14 (the Rust wasm32 allocator) and its cfg-if 1.0.4 macro
+  dependency: MIT is used here. See dlmalloc-0.2.14-MIT.txt and
+  cfg-if-1.0.4-MIT.txt. The original dlmalloc C implementation by Doug Lea
+  was released into the public domain.
+  https://crates.io/crates/dlmalloc/0.2.14
+  https://crates.io/crates/cfg-if/1.0.4
