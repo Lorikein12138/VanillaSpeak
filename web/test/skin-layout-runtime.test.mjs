@@ -87,7 +87,7 @@ test("the layout runtime never overrides host-authored control dimensions", () =
   assert.equal(unknown.dataset.wsLayoutTouchTarget, undefined, "unregistered markup must not inherit layout control styles");
 });
 
-test("a local order override is applied only to the registered element", () => {
+test("legacy local order overrides remain stored and have no rendering effect", () => {
   const root = new FakeElement();
   root.dataset.wsPage = "home";
   root.dataset.wsSkin = "test.skin";
@@ -116,15 +116,15 @@ test("a local order override is applied only to the registered element", () => {
 
   runtime.refreshSkinLayout();
 
-  assert.equal(ordered.dataset.wsLayoutOrder, "true");
-  assert.equal(ordered.style.values.get("--ws-layout-order"), "-7");
+  assert.equal(ordered.dataset.wsLayoutOrder, undefined);
+  assert.equal(ordered.style.values.get("--ws-layout-order"), undefined);
   assert.equal(unrelated.dataset.wsLayoutOrder, undefined);
   assert.equal(unrelated.style.values.has("--ws-layout-order"), false);
-  assert.equal(pluginRoot.dataset.wsLayoutOrder, "true");
-  assert.equal(pluginRoot.style.values.get("--ws-layout-order"), "3");
+  assert.equal(pluginRoot.dataset.wsLayoutOrder, undefined);
+  assert.equal(pluginRoot.style.values.get("--ws-layout-order"), undefined);
 });
 
-test("arbitrary component nodes accept local layout edits without imposing control dimensions", () => {
+test("a validated package layout still configures the public component and clears on reset", () => {
   const root = new FakeElement();
   root.dataset.wsPage = "home";
   root.dataset.wsSkin = "test.skin";
@@ -147,10 +147,13 @@ test("arbitrary component nodes accept local layout edits without imposing contr
     recoveries: {},
   });
   setGlobal("localStorage", { getItem: () => collection, setItem: () => undefined });
-  setGlobal("document", { querySelectorAll: () => [root] });
-  setGlobal("window", { matchMedia: () => ({ matches: false }) });
-
-  runtime.refreshSkinLayout();
+  setGlobal("document", { querySelectorAll: () => [root], getElementById: () => ({}), body: root });
+  setGlobal("MutationObserver", class { observe() {} });
+  setGlobal("window", { matchMedia: () => ({ matches: false }), addEventListener() {}, requestAnimationFrame: () => 1 });
+  runtime.setSkinLayoutPackage("test.skin", { schemaVersion: 1, pages: { home: { desktop: {
+    "skin.home.demo-banner.node-root-0": { x: 24, y: 36, width: 280, height: 96, visible: false },
+    "skin.home.demo-banner.control-node-root-1": { order: 5 },
+  } } } });
 
   assert.equal(content.dataset.wsLayoutActive, "true");
   assert.equal(content.dataset.wsLayoutHidden, "true");
@@ -160,4 +163,6 @@ test("arbitrary component nodes accept local layout edits without imposing contr
   assert.equal(content.style.values.get("--ws-layout-height"), "96px");
   assert.equal(button.style.values.get("--ws-layout-order"), "5");
   assert.equal(button.dataset.wsLayoutTouchTarget, undefined);
+  runtime.setSkinLayoutPackage("builtin.light", null);
+  assert.equal(content.dataset.wsLayoutActive, undefined);
 });

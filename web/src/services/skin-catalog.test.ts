@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   BUILTIN_SKIN_CATALOG,
-  getBundledSkinPackageUrl,
   getPublicDefaultSkinId,
   isPublicSkinEnabled,
   listPublicSkins,
@@ -19,12 +18,11 @@ test("built-in appearance manifests and catalog versions match the bundled share
   const lightManifest = JSON.parse(lightManifestText) as { id: string; version: string };
   const darkManifest = JSON.parse(darkManifestText) as { id: string; version: string };
 
-  assert.equal(getBundledSkinPackageUrl("community.kaak-voice"), "/skins/kaak-voice.wskin");
   for (const manifest of [lightManifest, darkManifest]) {
     assert.equal(BUILTIN_SKIN_CATALOG.find((skin) => skin.id === manifest.id)?.version, manifest.version);
   }
-  assert.equal(lightManifest.version, "1.0.2");
-  assert.equal(darkManifest.version, "1.0.2");
+  assert.equal(lightManifest.version, "1.1.0");
+  assert.equal(darkManifest.version, "1.1.0");
   assert.match(lightCss, /\.screen-share-live-indicator\s*\{[^}]*background:/s);
   assert.match(lightCss, /\.screen-share-card-button\.viewing\s*\{[^}]*background:/s);
   assert.match(darkCss, /\.screen-share-live-indicator\s*\{[^}]*background:/s);
@@ -42,7 +40,7 @@ test("skin catalog always includes protected built-ins and exposes only enabled 
     skins: [
       { id: "sample-skin", name: "Sample", version: "1.0.0", author: "Test", license: "MIT", minAppVersion: "0.2.6", installedAt: 1, enabled: true },
       { id: "disabled-skin", name: "Disabled", version: "1.0.0", author: "Test", license: "MIT", minAppVersion: "0.2.6", installedAt: 2, enabled: false },
-      { id: "community.kaak-voice", name: "Spoofed KAAK", version: "9.9.9", author: "Other", license: "MIT", minAppVersion: "0.0.1", installedAt: 4 },
+      { id: "community.kaak-voice", name: "User-installed KAAK", version: "9.9.9", author: "Other", license: "MIT", minAppVersion: "0.0.1", installedAt: 4 },
     ],
   }), { status: 200, headers: { "content-type": "application/json" } });
 
@@ -51,10 +49,10 @@ test("skin catalog always includes protected built-ins and exposes only enabled 
     assert.deepEqual(skins.map((skin) => skin.id), [
       "builtin.light",
       "builtin.dark",
-      "community.kaak-voice",
       "sample-skin",
+      "community.kaak-voice",
     ]);
-    assert.deepEqual(BUILTIN_SKIN_CATALOG.map((skin) => skin.id), skins.slice(0, 3).map((skin) => skin.id));
+    assert.deepEqual(BUILTIN_SKIN_CATALOG.map((skin) => skin.id), skins.slice(0, 2).map((skin) => skin.id));
     assert.equal(getPublicDefaultSkinId(), "sample-skin");
     assert.equal(isPublicSkinEnabled("sample-skin"), true);
     assert.equal(isPublicSkinEnabled("disabled-skin"), false);
@@ -73,7 +71,7 @@ test("invalid or disabled instance defaults safely fall back to the protected da
 
   try {
     const skins = await listPublicSkins();
-    assert.equal(skins.length, 3);
+    assert.equal(skins.length, 2);
     assert.equal(getPublicDefaultSkinId(), "builtin.light");
   } finally {
     globalThis.fetch = originalFetch;

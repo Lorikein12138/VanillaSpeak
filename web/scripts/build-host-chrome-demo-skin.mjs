@@ -4,7 +4,6 @@ import { zipSync, strToU8 } from "fflate";
 
 const source = new URL("../../docs/examples/host-chrome-demo/", import.meta.url);
 const examples = new URL("../../docs/examples/", import.meta.url);
-const publicDir = new URL("../public/", import.meta.url);
 
 const crcTable = (() => {
   const table = new Uint32Array(256);
@@ -97,8 +96,6 @@ const hidden = zipSync({
 await Promise.all([
   writeFile(new URL("host-chrome-themed.wskin", examples), themed),
   writeFile(new URL("host-chrome-demo.wskin", examples), hidden),
-  writeFile(new URL("host-chrome-themed.wskin", publicDir), themed),
-  writeFile(new URL("host-chrome-demo.wskin", publicDir), hidden),
 ]);
 
-console.log(`Built host chrome demo skins (${themed.byteLength} / ${hidden.byteLength} bytes) into docs/examples and web/public.`);
+console.log(`Built host chrome demo skins (${themed.byteLength} / ${hidden.byteLength} bytes) into docs/examples.`);

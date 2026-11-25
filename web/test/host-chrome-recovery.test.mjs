@@ -44,10 +44,9 @@ const scenarios = [
   },
 ];
 
-test("host chrome renders recovery and authorization in a closed-shadow top layer", async () => {
-  const [hostChrome, authorization, ownedLayer, hostChromeService, publicSkin] = await Promise.all([
+test("host chrome renders recovery and revocation in a closed-shadow top layer", async () => {
+  const [hostChrome, ownedLayer, hostChromeService, publicSkin] = await Promise.all([
     read("../src/components/HostChrome.vue"),
-    read("../src/components/InstanceAuthorization.vue"),
     read("../src/services/host-owned-layer.ts"),
     read("../src/services/host-chrome.ts"),
     read("../src/composables/usePublicSkin.ts"),
@@ -62,10 +61,7 @@ test("host chrome renders recovery and authorization in a closed-shadow top laye
   assert.doesNotMatch(hostChrome, /data-ws-part="host\.recovery"/);
   assert.doesNotMatch(hostChrome, /ws-host-recovery-layer/);
 
-  // Authorization: showModal() inside the same host-owned mechanism.
-  assert.match(authorization, /createHostOwnedLayer\('authorization'/);
-  assert.match(authorization, /showModal\(\)/);
-  assert.doesNotMatch(authorization, /data-ws-part="host\.permission"/);
+  assert.match(hostChrome, /data-ws-recovery-action="disable"/);
 
   // The layer itself: closed shadow root, no data-ws-part, fixed fallback.
   assert.match(ownedLayer, /attachShadow\(\{ mode: "closed" \}\)/);
@@ -98,23 +94,6 @@ test("host chrome renders recovery and authorization in a closed-shadow top laye
       selector,
     );
   }
-});
-
-test("the themed preview keeps recovery in its own hookless top layer", async () => {
-  const [preview, bridge] = await Promise.all([
-    read("../host-chrome-preview.html"),
-    read("../src/services/host-chrome-preview.ts"),
-  ]);
-  assert.match(bridge, /resolveHiddenHostParts/);
-  assert.match(preview, /host-chrome-preview\.ts/);
-  assert.match(preview, /resolveHiddenHostParts\(chromeData, \[\]\)/);
-  assert.match(preview, /hiddenParts\.has\(part\)/);
-  assert.match(preview, /isHostPartReachable\(/);
-  assert.match(preview, /launcherReachable/);
-  assert.match(preview, /recoveryLayer\.remove\(\)/);
-  assert.match(preview, /popover="manual"/);
-  assert.doesNotMatch(preview, /data-ws-part="host\.recovery"/);
-  assert.doesNotMatch(preview, /const watermarkHidden = getComputedStyle/);
 });
 
 test("the public-skin composable opts in only through chrome.json#visibleParts", async () => {
@@ -177,15 +156,16 @@ test("recovery stays visible and clickable under hostile compiled skins", { skip
   assert.equal(payload.error, undefined, payload.error);
   assert.equal(payload.results.length, scenarios.length);
 
-  assert.ok(payload.authorization, "the authorization dialog was not mounted");
-  assert.equal(payload.authorization.modalOpen, true, "the authorization dialog is not modal / in the top layer");
-  assert.equal(payload.authorization.topLayerHit, true, "the hostile layer covers the authorization dialog");
-  assert.equal(payload.authorization.hostileCovered, false, "the hostile layer received the authorization hit test");
-  assert.equal(payload.authorization.layerOutsideSkinRoot, true, "the authorization dialog was rendered inside .ws-skin-root");
-  assert.equal(payload.authorization.sized, true, "the authorization dialog has no layout box");
+
+  assert.deepEqual(payload.keyboardRecovery, {
+    closedBeforeShortcut: true,
+    opened: true,
+    focusedAction: "built-in",
+  });
 
   // The pre-Popover / rejected-promotion fallback must actually lay the capsule
   // out: a closed [popover] is display:none !important until the attribute goes.
+  assert.equal(payload.authorizationDisabled, true);
   assert.ok(payload.popoverFallback, "the fixture did not exercise the popover fallback");
   assert.equal(payload.popoverFallback.display, "flex", "the fallback capsule is not displayed");
   assert.equal(payload.popoverFallback.popoverAttribute, false, "the popover attribute still forces display:none");

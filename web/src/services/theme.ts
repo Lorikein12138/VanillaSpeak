@@ -1,5 +1,6 @@
-export type ThemeMode = "system" | "light" | "dark";
+export type ThemeMode = "light" | "dark";
 
+import { ref } from "vue";
 import lightManifest from "../skins/builtin/light/manifest.json";
 import lightCss from "../skins/builtin/light/skin.css?inline";
 import darkManifest from "../skins/builtin/dark/manifest.json";
@@ -7,29 +8,40 @@ import darkCss from "../skins/builtin/dark/skin.css?inline";
 
 const THEME_KEY = "webspeak:theme";
 const SKIN_STYLE_ELEMENT_ID = "webspeak-active-built-in-skin";
-const LIGHT_THEME_COLOR = "#006a64";
-const DARK_THEME_COLOR = "#101918";
-let activeThemeMode: ThemeMode = "system";
+const LIGHT_THEME_COLOR = "#F8F5ED";
+const DARK_THEME_COLOR = "#181D1A";
+export const hostTheme = ref<ThemeMode>("light");
 
 const builtinSkins = {
   light: { manifest: lightManifest, css: lightCss },
   dark: { manifest: darkManifest, css: darkCss },
 } as const;
 
-export function getBuiltinSkinCss(theme: Exclude<ThemeMode, "system">): string {
+export function getBuiltinSkinCss(theme: ThemeMode): string {
   return theme === "dark" ? builtinSkins.dark.css : builtinSkins.light.css;
 }
 
+export function getThemePreference(): ThemeMode | undefined {
+  try {
+    const choice = localStorage.getItem("webspeak:skin-choice");
+    if (choice === "builtin.light" || choice === "builtin.dark") return choice === "builtin.dark" ? "dark" : "light";
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+    if (stored === "system") return resolveLegacySystemTheme();
+  } catch { /* Optional storage. */ }
+}
+
+export function resolveLegacySystemTheme(): ThemeMode {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export function getStoredTheme(): ThemeMode {
-  let value: string | null = null;
-  try { value = typeof localStorage === "undefined" ? null : localStorage.getItem(THEME_KEY); }
-  catch { /* A restricted browser still has a usable system theme. */ }
-  return value === "light" || value === "dark" || value === "system" ? value : "system";
+  return getThemePreference() ?? hostTheme.value;
 }
 
 export function applyTheme(theme: ThemeMode, options: { preserveCustomSkins?: boolean } = {}): void {
+  hostTheme.value = theme;
   if (typeof document === "undefined") return;
-  activeThemeMode = theme;
   const root = document.documentElement;
   const dark = isDarkTheme(theme);
   const activeSkin = isDarkTheme(theme) ? builtinSkins.dark : builtinSkins.light;
@@ -66,29 +78,26 @@ export function applyTheme(theme: ThemeMode, options: { preserveCustomSkins?: bo
 }
 
 export function saveTheme(theme: ThemeMode, options: { preserveCustomSkins?: boolean } = {}): void {
-  if (typeof localStorage !== "undefined") localStorage.setItem(THEME_KEY, theme);
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+    localStorage.removeItem("webspeak:skin-choice");
+    if (!options.preserveCustomSkins) localStorage.removeItem("webspeak:third-party-skin:v2");
+  } catch { /* Current page remains usable without storage. */ }
   applyTheme(theme, options);
 }
 
 export function isDarkTheme(theme: ThemeMode): boolean {
-  if (theme === "dark") return true;
-  if (theme === "light") return false;
-  return typeof window !== "undefined" && typeof window.matchMedia === "function"
-    ? window.matchMedia("(prefers-color-scheme: dark)").matches
-    : false;
+  return theme === "dark";
 }
 
 export function nextTheme(theme: ThemeMode): ThemeMode {
   return isDarkTheme(theme) ? "light" : "dark";
 }
 
-applyTheme(getStoredTheme());
+const initialPreference = getThemePreference();
+if (initialPreference) saveTheme(initialPreference, { preserveCustomSkins: true });
+else applyTheme("light");
 
-if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
-  const systemColorScheme = window.matchMedia("(prefers-color-scheme: dark)");
-  const updateSystemSkin = () => {
-    if (activeThemeMode === "system") applyTheme("system", { preserveCustomSkins: true });
-  };
-  if (systemColorScheme.addEventListener) systemColorScheme.addEventListener("change", updateSystemSkin);
-  else systemColorScheme.addListener?.(updateSystemSkin);
-}
+if (typeof window !== "undefined") window.addEventListener("storage", event => {
+  if (event.key === THEME_KEY || event.key === null) applyTheme(getThemePreference() ?? "light", { preserveCustomSkins: true });
+});

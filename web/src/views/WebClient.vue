@@ -1,4 +1,18 @@
 <template>
+  <WebClientHeader
+    v-model:language="language"
+    :skin-id="headerSkinId"
+    :mobile="mobileMode"
+    :connected="showVoiceShell"
+    :protected-tools="Boolean(activeSkin)"
+    :skin-options="skinOptions"
+    :t="translate"
+    @skin-change="onSkinChange"
+    @language-change="persistLanguage"
+  >
+    <ExtensionPreferences :language="language" :native="mobileMode" :admin-label="translate('adminConsole')"
+      :active-id="activeSkinId" :skins="extensionSkinOptions" :import-skin="publicSkin.importLocal" @select="onSkinChange" />
+  </WebClientHeader>
   <div
     :class="[
       'web-client',
@@ -9,6 +23,7 @@
     :style="{ '--ws-viewport-height': `${mobileViewport.height}px`, '--ws-viewport-top': `${mobileViewport.top}px` }"
     :lang="language"
     data-ws-part="app"
+    :data-ws-skin="activeSkinId"
     :data-ws-page="showVoiceShell ? 'voice' : 'home'"
   >
     <SkinPluginOutlet
@@ -25,15 +40,6 @@
       :widgets="skinPluginWidgets"
       @surface-change="skinPluginSurfaceActive = $event"
       @restore-skin="switchToBuiltIn"
-    />
-    <SkinPluginEditor
-      v-if="activeSkin && skinEditorMode.isEnabled.value"
-      :skin-id="activeSkin.id"
-      :skin-version="activeSkin.version"
-      :base-document="activeSkin.pluginData"
-      :page="showVoiceShell ? 'voice' : 'home'"
-      :lang="language"
-      @updated="skinPluginDocumentRevision += 1"
     />
     <SkinRuntimePluginHost
       v-if="activeSkin?.runtimePlugins"
@@ -72,18 +78,6 @@
       class="join-page"
       data-ws-part="home"
     >
-      <WebClientHeader
-        v-model:language="language"
-        v-model:skin-id="activeSkinId"
-        :brand-name="skinHomeCopy.brandName || siteName"
-        :app-version="appVersion"
-        :mobile="mobileMode"
-        :skin-options="skinOptions"
-        :t="t"
-        @open-qq="qqModalOpen = true"
-        @skin-change="onSkinChange"
-        @language-change="persistLanguage"
-      />
       <div class="ws-skin-mount-slot" data-ws-skin-mount="home.header.after"></div>
 
       <main
@@ -105,6 +99,7 @@
               skinHomeCopy.titleAccent || t("joinLine2")
             }}</em></h1
           >
+          <p v-if="siteName !== PRODUCT_NAME && siteName !== 'WebSpeak'" class="instance-name">{{ siteName }}</p>
           <p
             class="join-description"
             data-ws-part="home.hero.description"
@@ -141,29 +136,8 @@
           class="join-card"
           data-ws-part="home.join-card"
         >
-          <div
-            class="join-card-effects"
-            aria-hidden="true"
-          >
-            <span
-              class="join-card-waveform"
-              data-ws-part="home.join-card.waveform"
-              ><i
-                v-for="bar in 9"
-                :key="bar"
-              ></i
-            ></span>
-            <span
-              class="join-card-sonar"
-              data-ws-part="home.join-card.sonar"
-              ><i
-                v-for="ring in 3"
-                :key="ring"
-              ></i
-            ></span>
-          </div>
           <h2 data-ws-part="home.join-title">{{
-            skinHomeCopy.welcomeTitle || t("welcomeBack")
+            skinHomeCopy.welcomeTitle || appearanceCopy(language).connectTitle
           }}</h2>
           <p
             class="card-lead"
@@ -193,7 +167,7 @@
             ><span>{{ localizedMessage(browserError) }}</span></div
           >
           <div
-            v-if="!serverConfigLoading && !initialized"
+            v-if="!serverConfigLoading && !serverConfigUnavailable && !initialized"
             class="notice warning-notice"
             data-ws-part="home.notice"
             data-ws-state="unconfigured"
@@ -210,6 +184,12 @@
             ><span class="notice-symbol">i</span
             ><span>{{ t("localPersistenceUnavailable") }}</span></div
           >
+
+          <p v-if="serverConfigLoading" class="gateway-notice" role="status">{{ appearanceCopy(language).loading }}</p>
+          <div v-else-if="serverConfigUnavailable" class="gateway-notice appearance-error" role="alert">
+            {{ appearanceCopy(language).unavailable }}
+            <button type="button" class="product-control" @click="loadPublicConfig">{{ appearanceCopy(language).retry }}</button>
+          </div>
 
           <JoinForm
             v-if="initialized"
@@ -241,15 +221,6 @@
             @import-identity="openIdentityImport"
             @export-identity="exportIdentity"
           />
-          <div
-            class="join-meta"
-            data-ws-part="home.security-note"
-            ><Icon
-              name="lock"
-              :size="14"
-            />
-            {{ t("connectionAuthorized") }}</div
-          >
         </div>
         <div class="ws-skin-mount-slot" data-ws-skin-mount="home.content.after"></div>
       </main>
@@ -259,61 +230,17 @@
         data-ws-part="home.footer"
       >
         <div class="ws-skin-mount-slot" data-ws-skin-mount="home.footer.before"></div>
-        <span data-ws-part="home.footer.decoration">WebSpeak</span><span class="footer-separator" data-ws-part="home.footer.decoration">·</span
-        ><span data-ws-part="home.footer.decoration">{{ t("teamSpeakClient") }}</span
-        ><span class="footer-spacer"></span
+        <span data-ws-part="home.footer.decoration">{{ PRODUCT_NAME }} v{{ appVersion }}</span>
+        <span class="footer-spacer"></span
         ><button
           type="button"
           class="clear-local-button"
           data-ws-part="home.footer.clear"
           @click="clearBrowserData"
           >{{ t("clearLocalData") }}</button
-        ><span class="footer-separator" data-ws-part="home.footer.decoration">·</span><span data-ws-part="home.footer.decoration">{{ t("browserSupport") }}</span>
+        >
       </footer>
 
-      <!-- QQ community modal -->
-      <div
-        v-if="qqModalOpen"
-        class="modal-backdrop qq-modal-backdrop"
-        @click.self="qqModalOpen = false"
-      >
-        <section
-          class="qq-modal-card"
-          data-ws-part="home.community-dialog"
-          role="dialog"
-          aria-modal="true"
-          :aria-labelledby="'qq-group-title'"
-        >
-          <button
-            type="button"
-            class="qq-modal-close"
-            :aria-label="t('close')"
-            :title="t('close')"
-            @click="qqModalOpen = false"
-            ><Icon
-              name="close"
-              :size="19"
-          /></button>
-          <div class="qq-modal-heading"
-            ><span class="card-kicker">{{ t("qqGroup") }}</span
-            ><h2 id="qq-group-title">{{ t("qqGroup") }}</h2></div
-          >
-          <img
-            class="qq-qr-image"
-            src="/qq-group-qr.jpg"
-            :alt="t('qqGroupQrAlt')"
-          />
-          <p class="qq-direct-join">{{ t("qqJoinDirect") }}</p>
-          <a
-            class="qq-join-link"
-            :href="qqJoinUrl"
-            :aria-label="t('joinQqGroup')"
-            target="_blank"
-            rel="noreferrer"
-            >{{ qqJoinUrl }}</a
-          >
-        </section>
-      </div>
     </section>
 
     <!-- Connected application shell -->
@@ -339,7 +266,7 @@
             data-ws-part="voice.favorite-servers.rail.item"
             :data-ws-state="server.isFavorite ? 'favorite' : 'recent'"
           >
-            <button
+          <button
               type="button"
               :class="['favorite-server-button', { active: isQuickServerTarget(server) }]"
               data-ws-part="voice.favorite-servers.server"
@@ -454,7 +381,7 @@
           <div
             class="breadcrumbs"
             data-ws-part="voice.breadcrumbs"
-            ><span class="mobile-brand">TeamSpeak <em>Web</em></span
+            ><span class="mobile-brand">{{ PRODUCT_NAME }}</span
             ><span class="crumb-muted">{{ t("serverBreadcrumb") }}</span
             ><Icon
               name="chevron-right"
@@ -512,11 +439,10 @@
                 :size="18"
             /></button>
             <SkinSwitcher
-              v-model="activeSkinId"
+              :model-value="headerSkinId"
               class="workspace-skin-switcher"
               :menu-label="t('skinSelector')"
               :options="skinOptions"
-              :plugin-library-available="voiceState.connected && Boolean(pluginSession)"
               @change="onSkinChange"
             />
             <LanguageSwitcher skin-icon
@@ -718,6 +644,7 @@
             <div class="ws-skin-mount-slot" data-ws-skin-mount="voice.activity.after"></div>
             <div class="ws-skin-mount-slot" data-ws-skin-mount="voice.chat.before"></div>
             <ChatPanel
+              class="workspace-chat"
               :model="chat"
               :t="t"
               :current-channel-name="currentChannelName"
@@ -795,11 +722,10 @@
           {{ t("audioSettings") }}</button
         >
         <SkinSwitcher
-          v-model="activeSkinId"
+          :model-value="headerSkinId"
           class="mobile-skin-switcher"
           :menu-label="t('skinSelector')"
           :options="skinOptions"
-          :plugin-library-available="voiceState.connected && Boolean(pluginSession)"
           @change="onSkinChange"
         />
         <div class="language-menu-row"
@@ -965,7 +891,6 @@
     >
   </div>
   <SkinLoadRecoveryNotice :error="skinLoadError" :language="language" @use-built-in="switchToBuiltInAfterLoadError" />
-  <InstanceAuthorization :language="language" />
 </template>
 
 <script setup lang="ts">
@@ -975,7 +900,6 @@ import Icon from "../components/Icon.vue";
 import VoiceConnectionStatus from "../components/web-client/VoiceConnectionStatus.vue";
 import { useVoiceWorkspace } from "../composables/useVoiceWorkspace.js";
 import SkinPluginOutlet from "../components/SkinPluginOutlet.js";
-import SkinPluginEditor from "../components/SkinPluginEditor.vue";
 import SkinRuntimePluginHost from "../components/SkinRuntimePluginHost.js";
 import SkinLoadRecoveryNotice from "../components/SkinLoadRecoveryNotice.vue";
 import VoiceMemberCards from "../components/web-client/VoiceMemberCards.vue";
@@ -985,7 +909,7 @@ import { channelDisplayName, getChannelSpacer } from "../../../src/shared/channe
 import VoiceServerSwitcher from "../components/web-client/VoiceServerSwitcher.vue";
 import VoiceServerHeader from "../components/web-client/VoiceServerHeader.vue";
 import VoiceServerBanner from "../components/web-client/VoiceServerBanner.vue";
-import VisitorCount from "../components/web-client/VisitorCount.vue";
+
 import ScreenShareSettingsDialog from "../components/web-client/ScreenShareSettingsDialog.vue";
 import ScreenSharePlayer from "../components/web-client/ScreenSharePlayer.vue";
 import AudioDock from "../components/web-client/AudioDock.vue";
@@ -997,11 +921,14 @@ import ChannelMemberPanel from "../components/web-client/ChannelMemberPanel.vue"
 import MemberActionsMenu from "../components/web-client/MemberActionsMenu.vue";
 import JoinForm from "../components/web-client/JoinForm.vue";
 import ChatPanel from "../components/web-client/ChatPanel.vue";
+import { PRODUCT_NAME } from "../../../src/shared/product.js";
+import ExtensionPreferences from "../components/ExtensionPreferences.vue";
+import VisitorCount from "../components/web-client/VisitorCount.vue";
+import { appearanceCopy } from "../i18n/appearance.js";
 import WebClientHeader from "../components/web-client/WebClientHeader.vue";
 import IdentityImportDialog from "../components/web-client/IdentityImportDialog.vue";
 import FavoriteServerDialog, { type FavoriteServerDraft } from "../components/web-client/FavoriteServerDialog.vue";
 import { usePublicSkin } from "../composables/usePublicSkin.js";
-import { useSkinEditorMode } from "../services/skin-editor-mode.js";
 import { useWebClientIdentity } from "../composables/useWebClientIdentity.js";
 import LanguageSwitcher from "../components/LanguageSwitcher.vue";
 import SkinSwitcher, { type SkinOption } from "../components/SkinSwitcher.vue";
@@ -1013,7 +940,6 @@ import { useWebClientMembers } from "../composables/useWebClientMembers.js";
 import PluginPanel from "../components/PluginPanel.vue";
 import { OFFICIAL_SKIN_IDS } from "../services/instance-authorization.js";
 import HostChrome from "../components/HostChrome.vue";
-import InstanceAuthorization from '../components/InstanceAuthorization.vue';
 import WorkspaceInviteDialog from "../components/web-client/WorkspaceInviteDialog.vue";
 import { useVoiceWebSocket, type ChannelMember, type ChatMessage } from "../composables/useVoiceWebSocket.js";
 import { useWebClientScreenShare } from "../composables/useWebClientScreenShare.js";
@@ -1026,14 +952,12 @@ import { clearLocalData as clearStoredLocalData, isLocalPersistenceAvailable, lo
 import { isQuickServerAddressLabel, quickServerTargetsEqual, type QuickServer } from "../services/quick-servers.js";
 import { requestIdentityProviderLogin as dispatchIdentityProviderLogin } from "../services/identity-provider.js";
 import type { InstalledSkin, SkinHomeCopy } from "../services/skin-pack.js";
-import { isPublicSkinEnabled } from "../services/skin-catalog.js";
 import { BUILTIN_DARK_SKIN, BUILTIN_LIGHT_SKIN } from "../services/skin-runtime.js";
-import { applyTheme, getStoredTheme, type ThemeMode } from "../services/theme.js";
+import { applyTheme, getStoredTheme, hostTheme } from "../services/theme.js";
 import { createScreenWakeLockController, getScreenWakeLockApi, type ScreenWakeLockController, type ScreenWakeLockSnapshot } from "../services/screen-wake-lock.js";
 import { createMobileAwayController, type MobileAwayController } from "../services/mobile-away.js";
 import { createSkinPluginQuickServerProjection, safeSkinServerDisplayName } from "../services/skin-plugin-context.js";
 import { resolveSkinMessages } from "../services/skin-content.js";
-import { loadSkinPluginAuthoringDocument } from "../services/skin-plugin-authoring.js";
 import type { SkinPluginDocument, SkinPluginWidgetOptions } from "../../../src/shared/skin-plugin.js";
 import { combineTeamSpeakTarget, DEFAULT_TEAM_SPEAK_PORT, isValidTeamSpeakPort, splitTeamSpeakTarget } from "../services/teamspeak-target.js";
 
@@ -1149,9 +1073,9 @@ const favoriteSwitchFailed = ref(false);
 const favoriteSwitchError = ref("");
 const channelPasswordDialog = reactive({ open: false, channelId: "", password: "", error: "", submitting: false });
 const serverPasswordDialog = reactive({ open: false, password: "", errorCode: "" });
-const qqModalOpen = ref(false);
-const qqJoinUrl = "http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=yhumUMDD9PmyYFWdXWUb_x7hM5trFQY8&authKey=Pw3HBGT7GwMinTQnuFGfnpf0aRSzXOJKcAiujVP1%2BXMpjheAKrncTRivicBJxpjV&noverify=0&group_code=869500475";
-const githubRepositoryUrl = "https://github.com/Lorikein12138/VanillaSpeak";
+
+
+
 const toast = ref("");
 const localPersistenceAvailable = isLocalPersistenceAvailable();
 const identityReady = ref(!localPersistenceAvailable);
@@ -1167,14 +1091,11 @@ let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 const language = ref<Language>(getInitialLanguage());
 const activeSkin = shallowRef<InstalledSkin | null>(null);
-const skinEditorMode = useSkinEditorMode();
-const skinPluginDocumentRevision = ref(0);
 const emptySkinPluginDocument: SkinPluginDocument = { schemaVersion: 3, components: [] };
 const skinPluginDocument = computed<SkinPluginDocument>(() => {
-  skinPluginDocumentRevision.value;
   const skin = activeSkin.value;
   if (!skin) return emptySkinPluginDocument;
-  return loadSkinPluginAuthoringDocument(skin.id, skin.version) ?? skin.pluginData ?? emptySkinPluginDocument;
+  return skin.pluginData ?? emptySkinPluginDocument;
 });
 const pluginToolbarTarget = ref<HTMLElement | null>(null);
 const skinPluginToolbar = shallowRef<{ element: HTMLElement; presentation: NonNullable<SkinPluginWidgetOptions["pluginPresentation"]> } | null>(null);
@@ -1217,27 +1138,31 @@ const {
   initialized,
   mobileMode,
   siteName,
-  appVersion,
   visitorNumber,
   visitorTotal,
+  appVersion,
   accelerationRelays,
   openTargetPrefillBlocked,
   serverConfigLoading,
+  serverConfigUnavailable,
   localizedWelcomeText,
   loadPublicConfig,
 } = useWebClientPublicConfig({ serverHost, serverPort, accelerationRelayId, language, t });
-const themeMode = ref<ThemeMode>(getStoredTheme());
-applyTheme(themeMode.value);
-const publicSkin = usePublicSkin({ activeSkin, themeMode, appVersion: () => appVersion.value });
+const publicSkin = usePublicSkin({ activeSkin, appVersion: () => appVersion.value });
 const { activeSkinId, skinReady, skinLoadError, installedSkins, catalogSkins,
   select: onSkinChange, initialize: initializeSkin, switchToBuiltIn, switchToBuiltInAfterLoadError } = publicSkin;
+const headerSkinId = computed(() => hostTheme.value === "dark" ? BUILTIN_DARK_SKIN : BUILTIN_LIGHT_SKIN);
 const skinOptions = computed<SkinOption[]>(() => [
-  ...catalogSkins.value.map((skin) => ({
+  { value: BUILTIN_LIGHT_SKIN, label: appearanceCopy(language.value).day, icon: "sun" },
+  { value: BUILTIN_DARK_SKIN, label: appearanceCopy(language.value).night, icon: "moon" },
+]);
+const extensionSkinOptions = computed<SkinOption[]>(() => [
+  ...catalogSkins.value.filter(skin => !skin.builtIn).map((skin) => ({
     value: skin.id,
-    label: skin.id === BUILTIN_LIGHT_SKIN ? t("skinDay") : skin.id === BUILTIN_DARK_SKIN ? t("skinNight") : skin.name,
-    icon: skin.id === BUILTIN_LIGHT_SKIN ? "sun" : skin.id === BUILTIN_DARK_SKIN ? "moon" : "compass",
+    label: skin.name,
+    icon: "compass",
   })),
-  ...installedSkins.value.filter((skin) => !catalogSkins.value.some((item) => item.id === skin.id) && isPublicSkinEnabled(skin.id)).map((skin) => ({ value: skin.id, label: skin.name, icon: "compass" })),
+  ...installedSkins.value.filter((skin) => !catalogSkins.value.some((item) => item.id === skin.id)).map((skin) => ({ value: skin.id, label: skin.name, icon: "compass" })),
 ]);
 const skinHomeCopy = computed<SkinHomeCopy>(() => resolveSkinHomeCopy(activeSkin.value, language.value));
 const skinHomeFeatures = computed(() => {
@@ -1412,7 +1337,11 @@ const chat = useWebClientChat({
   t,
 });
 watch(() => mobileViewport.height, () => chat.scrollIfFollowing(), { flush: "post" });
-const { tab: chatTab, openPrivateChat } = chat;
+const { tab: chatTab } = chat;
+function openPrivateChat(targetClientId: number) {
+  chat.openPrivateChat(targetClientId);
+  void nextTick(() => document.querySelector<HTMLInputElement>(".workspace-chat .message-composer input")?.focus());
+}
 const {
   canJoin,
   currentServerTarget,
@@ -1834,30 +1763,8 @@ const skinPluginWidgets = {
     h("h2", { "data-ws-part": "home.server-announcement.title" }, t("serverAnnouncement")),
     h("p", { "data-ws-part": "home.server-announcement.body" }, localizedWelcomeText.value),
   ]),
-  "home.social-links": (options?: SkinPluginWidgetOptions) => h("nav", {
-    "data-ws-part": "home.social-links",
-    "aria-label": t("communityLinks"),
-  }, [
-    ...(options?.communityLinks === false ? [] : [h("a", {
-      href: githubRepositoryUrl,
-      target: "_blank",
-      rel: "noreferrer",
-      title: t("githubRepository"),
-      "aria-label": t("githubRepository"),
-    }, [h(Icon, { name: "github", size: 20 })]),
-    h("a", {
-      href: qqJoinUrl,
-      target: "_blank",
-      rel: "noreferrer",
-      title: t("qqGroup"),
-      "aria-label": t("qqGroup"),
-    }, [h(Icon, { name: "qq", size: 20 })])]),
-    h("a", {
-      href: "/admin",
-      title: t("adminConsole"),
-      "aria-label": t("adminConsole"),
-    }, [h(Icon, { name: "settings", size: 20 })]),
-  ]),
+  // The legacy widget remains valid. The same management link is in the host header.
+  "home.social-links": () => null,
   "voice.screen-share-start": () => h("button", {
     type: "button",
     class: "skin-runtime-screen-share-start",
@@ -1918,8 +1825,7 @@ const skinPluginWidgets = {
     }, [h("span", { class: "ws-home-identity-provider-label", "data-ws-part": "home.identity-provider.label", "aria-hidden": "true" }, providerLabel)]);
   },
   "app.skin-switcher": () => h(SkinSwitcher, {
-    modelValue: activeSkinId.value,
-    "onUpdate:modelValue": (value: string) => { activeSkinId.value = value; },
+    modelValue: headerSkinId.value,
     class: "skin-switcher",
     menuLabel: t("skinSelector"),
     options: skinOptions.value,
@@ -2189,7 +2095,7 @@ onMounted(() => {
   if (shouldKeepScreenAwake.value) screenWakeLockController.enable();
   stopViewportObservation = observeMobileViewport(window, value => Object.assign(mobileViewport, value));
   // The selected skin is applied to this public root, never to the admin DOM.
-  applyTheme(themeMode.value);
+  applyTheme(getStoredTheme());
   browserError.value = checkSupport() ?? "";
   void voiceWorkspace.restore(async () => {
     const [, , , preferences] = await Promise.all([loadPublicConfig(), initializeSkin(), loadSavedServers(), loadLocalPreferences()]);
@@ -2232,6 +2138,7 @@ onUnmounted(() => {
   if (viewportMediaQuery && viewportChangeHandler) viewportMediaQuery.removeEventListener?.("change", viewportChangeHandler);
   if (toastTimer) clearTimeout(toastTimer);
 });
+
 
 function selectMobileSection(section: typeof mobileSection.value): void {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -2333,5 +2240,6 @@ function resolveSkinHomeCopy(skin: InstalledSkin | null, locale: Language): Skin
 <style scoped src="../styles/web-client.css"></style>
 
 <style scoped src="../styles/web-client-mobile.css"></style>
+<style scoped src="../styles/public-appearance.css"></style>
 
 <style src="../styles/skin-plugin.css"></style>

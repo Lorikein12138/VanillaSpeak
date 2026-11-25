@@ -1,50 +1,11 @@
-import type { SkinCatalogEntry } from "../../../src/shared/skin-catalog.js";
+import { BUILTIN_SKIN_CATALOG, type SkinCatalogEntry } from "../../../src/shared/skin-catalog.js";
 import { createSkinOperation, type SkinLoadOptions } from "./skin-operation.js";
-export type { SkinCatalogEntry } from "../../../src/shared/skin-catalog.js";
+export { BUILTIN_SKIN_CATALOG, type SkinCatalogEntry } from "../../../src/shared/skin-catalog.js";
 
-export const BUILTIN_KAAK_SKIN_ID = "community.kaak-voice";
-
-export const BUILTIN_SKIN_CATALOG: SkinCatalogEntry[] = [
-  {
-    id: "builtin.light",
-    name: "Day mode",
-    version: "1.0.2",
-    author: "WebSpeak",
-    license: "AGPL-3.0-only",
-    description: "The default light appearance.",
-    minAppVersion: "0.2.6",
-    installedAt: 0,
-    builtIn: true,
-    previewKind: "day",
-  },
-  {
-    id: "builtin.dark",
-    name: "Night mode",
-    version: "1.0.2",
-    author: "WebSpeak",
-    license: "AGPL-3.0-only",
-    description: "The default dark appearance.",
-    minAppVersion: "0.2.6",
-    installedAt: 0,
-    builtIn: true,
-    previewKind: "night",
-  },
-  {
-    id: BUILTIN_KAAK_SKIN_ID,
-    name: "KAAK",
-    version: "3.1.134",
-    author: "WebSpeak Project",
-    license: "AGPL-3.0-only",
-    description: "A KOOK-inspired WebSpeak skin with a split-screen connection home, searchable server header, TeamSpeak banner, nested channel members, unified chat with local history, and a compact audio dock.",
-    minAppVersion: "0.3.2",
-    installedAt: 0,
-    builtIn: true,
-  },
-];
-
-const BUILTIN_KAAK_PACKAGE_URL = "/skins/kaak-voice.wskin";
 let publicDirectoryLoaded = false;
 let publicEnabledSkinIds = new Set<string>(BUILTIN_SKIN_CATALOG.map((skin) => skin.id));
+let disabledSkinIds = new Set<string>();
+export const isInstanceSkinDisabled = (id: string) => disabledSkinIds.has(id);
 let publicDefaultSkinId = "builtin.light";
 let pendingDirectory: ReturnType<typeof createSkinOperation> | null = null;
 
@@ -55,11 +16,6 @@ export function getPublicDefaultSkinId(): string {
 export function isPublicSkinEnabled(id: string): boolean {
   if (BUILTIN_SKIN_CATALOG.some((skin) => skin.id === id)) return true;
   return !publicDirectoryLoaded || publicEnabledSkinIds.has(id);
-}
-
-export function getBundledSkinPackageUrl(id: string): string | null {
-  if (id === BUILTIN_KAAK_SKIN_ID) return BUILTIN_KAAK_PACKAGE_URL;
-  return null;
 }
 
 export async function listPublicSkins(options: SkinLoadOptions = {}): Promise<SkinCatalogEntry[]> {
@@ -92,6 +48,7 @@ export async function listPublicSkins(options: SkinLoadOptions = {}): Promise<Sk
       }];
     });
     publicDirectoryLoaded = true;
+    disabledSkinIds = new Set(directorySkins.filter(skin => !skin.enabled).map(skin => skin.id));
     publicEnabledSkinIds = new Set([
       ...BUILTIN_SKIN_CATALOG.map((skin) => skin.id),
       ...directorySkins.filter((skin) => skin.enabled).map((skin) => skin.id),

@@ -20,8 +20,7 @@ import { parseSkinExtensionUiInput } from "../../../src/shared/skin-extension-ui
 import { approveSkinPluginComponents, getMissingSkinPluginApprovals, isSkinPluginComponentApproved, revokeSkinPluginApprovals } from "../services/skin-plugin-approval.js";
 import { createSkinPluginAssetUrlCache } from "../services/skin-plugin-asset-urls.js";
 import { PROMPT_FOR_SKIN_PERMISSIONS } from "../services/skin-permission-policy.js";
-import { canUseSkin, openInstanceAuthorization } from '../services/instance-authorization.js';
-import { useSkinEditorMode } from "../services/skin-editor-mode.js";
+import { canUseSkin } from '../services/instance-authorization.js';
 
 type Scalar = string | number | boolean;
 const LOCAL_STATE_SCOPE_LIMIT = 128;
@@ -70,7 +69,6 @@ export default defineComponent({
     "extension-event": (_payload: unknown) => true,
   },
   setup(props, { emit }) {
-    const editorMode = useSkinEditorMode();
     const denied = ref(false);
     const surfaceSuppressed = ref(false);
     const manageOpen = ref(false);
@@ -128,7 +126,6 @@ export default defineComponent({
       approveSkinPluginComponents(props.skinId, props.skinVersion, components);
       refresh.value += 1;
     }, { immediate: true });
-    watch(editorMode.isEnabled, (enabled) => { if (!enabled) manageOpen.value = false; });
 
     watch(() => [props.skinId, props.skinVersion, props.document, props.extensionOutput, props.extensionMode, props.componentNamespace, props.page], () => {
       denied.value = false;
@@ -419,10 +416,6 @@ export default defineComponent({
       refresh.value += 1;
     }
 
-    function openAccessManager(): void {
-      openInstanceAuthorization();
-    }
-
     function closeOrDisable(): void {
       if (pendingApproval.value.length) denied.value = true;
       manageOpen.value = false;
@@ -452,32 +445,8 @@ export default defineComponent({
           "aria-label": interpolate(component.accessibleName, props.data, state),
         }, [renderNode(component, component.root, props.data, state, { remaining: SKIN_PLUGIN_RENDER_NODE_LIMIT })]);
       });
-      const hasPermissions = matchingComponents.value.some((component) => component.permissions.length > 0);
-      const showConsent = (PROMPT_FOR_SKIN_PERMISSIONS && pendingApproval.value.length > 0) || manageOpen.value;
-      const accessToggle = hasPermissions && editorMode.isEnabled.value ? h(Teleport, { to: "body" }, [h("button", {
-        type: "button",
-        class: "ws-plugin-access-toggle",
-        "aria-label": "管理皮肤组件权限 / Manage skin component access",
-        onClick: openAccessManager,
-      }, "权限 / Access")]) : null;
-      const surfaceRecovery = activeSurface.value && props.manageSurfaceRecovery && editorMode.isEnabled.value ? h(Teleport, { to: "body" }, [h("button", {
-        type: "button",
-        class: "ws-plugin-surface-recovery",
-        "aria-label": "返回 WebSpeak 标准界面 / Return to the built-in interface",
-        onClick: () => { surfaceSuppressed.value = true; },
-      }, "标准界面 / Built-in UI")]) : null;
-      const skinRecovery = activeSurface.value && props.manageSurfaceRecovery && editorMode.isEnabled.value ? h(Teleport, { to: "body" }, [h("button", {
-        type: "button",
-        class: "ws-plugin-surface-reset",
-        "aria-label": "恢复内置皮肤 / Restore the built-in skin",
-        onClick: () => emit("restore-skin"),
-      }, "恢复内置皮肤 / Reset skin")]) : null;
-      const recoveryControls = [
-        ...(surfaceRecovery ? [surfaceRecovery] : []),
-        ...(skinRecovery ? [skinRecovery] : []),
-      ];
-      if (!showConsent) return h(Fragment, null, [...nodes, ...(accessToggle ? [accessToggle] : []), ...recoveryControls]);
-
+      const showConsent = PROMPT_FOR_SKIN_PERMISSIONS && pendingApproval.value.length > 0;
+      if (!showConsent) return h(Fragment, null, nodes);
       const requested = accessComponents.value;
       const hasMissing = PROMPT_FOR_SKIN_PERMISSIONS && pendingApproval.value.length > 0;
       const consent = h(Teleport, { to: "body" }, [h("div", { class: "ws-plugin-consent-backdrop", "data-ws-plugin-consent": "true" }, [
@@ -496,7 +465,7 @@ export default defineComponent({
           ]),
         ]),
       ])]);
-      return h(Fragment, null, [...nodes, ...(accessToggle ? [accessToggle] : []), ...recoveryControls, consent]);
+      return h(Fragment, null, [...nodes, consent]);
     };
   },
 });

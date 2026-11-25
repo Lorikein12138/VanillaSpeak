@@ -45,13 +45,12 @@ test("a host part moved entirely outside the viewport is unreachable", () => {
 });
 
 test("bundled and third-party skins are classified for the recovery affordance", () => {
-  // Official Day/Night and the bundled KAAK pack stay quiet.
-  for (const id of [undefined, "builtin.light", "builtin.dark", "community.kaak-voice"]) {
+  // Only the two host themes stay quiet.
+  for (const id of [undefined, "builtin.light", "builtin.dark"]) {
     assert.equal(isBundledSkin(id), true, String(id));
   }
-  for (const id of ["community.hostile-fixture", "community.some-open-skin", "builtin.future"]) {
-    // `builtin.*` is reserved for future host packs; everything else is third-party.
-    assert.equal(isBundledSkin(id), id.startsWith("builtin."), id);
+  for (const id of ["community.hostile-fixture", "community.some-open-skin", "community.kaak-voice", "builtin.future"]) {
+    assert.equal(isBundledSkin(id), false, id);
   }
 });
 

@@ -4,6 +4,9 @@ import { createRouter, createWebHistory } from "vue-router";
 import { bootstrapPlatform } from "./platform/bootstrap.js";
 import App from "./App.vue";
 import "./services/theme.js";
+import "./styles/appearance.css";
+import { appearanceCopy } from "./i18n/appearance.js";
+import { PRODUCT_NAME } from "../../src/shared/product.js";
 
 const BASELINE_WIDTH = 1920;
 const BASELINE_HEIGHT = 1080;
@@ -39,6 +42,14 @@ const router = createRouter({
 // Route chunks keep their CSS after navigation. Gate document-level layout so
 // visiting the admin console cannot constrain scrolling on the public pages.
 router.afterEach(to => {
+  let stored: string | null = null;
+  try { stored = localStorage.getItem("webspeak:language"); } catch { /* Optional storage. */ }
+  const language = stored === "en" || stored === "de" || stored === "ru" || stored === "ja" ? stored : "zh";
+  const administration = { zh: "管理控制台", en: "Admin console", de: "Verwaltung", ru: "Управление", ja: "管理コンソール" };
+  const demo = { zh: "演示", en: "Demo", de: "Demo", ru: "Демо", ja: "デモ" };
+  const title = to.name === "admin" ? administration[language] : to.name === "demo" ? demo[language] : appearanceCopy(language).joinTitle;
+  document.documentElement.lang = language === "zh" ? "zh-CN" : language;
+  document.title = title + " · " + PRODUCT_NAME;
   document.documentElement.dataset.wsRoute = to.name === "admin" ? "admin" : to.name === "demo" ? "demo" : "webclient";
 });
 

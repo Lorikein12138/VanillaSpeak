@@ -1,5 +1,5 @@
 import { parseSkinWorkspacePolicy, type SkinWorkspacePolicy } from "../shared/skin-workspace.js";
-import type { SkinCatalogEntry as SharedSkinCatalogEntry } from "../shared/skin-catalog.js";
+import { BUILTIN_SKIN_IDS, RETIRED_KAAK_ID, type SkinCatalogEntry as SharedSkinCatalogEntry } from "../shared/skin-catalog.js";
 import { compileSkinCss, SkinCssValidationError, type SkinCssSchemaVersion } from "../shared/skin-css.js";
 import { parseSkinLayoutJson } from "../shared/skin-layout.js";
 import {
@@ -31,7 +31,7 @@ const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
 const MAX_FONT_BYTES = 4 * 1024 * 1024;
 const MAX_SKINS = 50;
 const MAX_TOTAL_ARCHIVES = 200 * 1024 * 1024;
-export const BUILTIN_SKIN_IDS = ["builtin.light", "builtin.dark", "community.kaak-voice"] as const;
+export { BUILTIN_SKIN_IDS } from "../shared/skin-catalog.js";
 const BUILTIN_SKIN_ID_SET = new Set<string>(BUILTIN_SKIN_IDS);
 const EOCD_SIGNATURE = 0x06054b50;
 const CENTRAL_SIGNATURE = 0x02014b50;
@@ -192,6 +192,7 @@ export class SkinRegistry {
       const value: unknown = JSON.parse(await readFile(path.join(this.directory, "settings.json"), "utf8"));
       const id = value && typeof value === "object" ? (value as Record<string, unknown>).defaultSkinId : null;
       if (typeof id !== "string") return "builtin.light";
+      if (id === RETIRED_KAAK_ID && (value as Record<string, unknown>).builtinPolicyVersion !== 2) return "builtin.light";
       if (isBuiltinSkinId(id)) return id;
       const entry = (await this.list()).find((skin) => skin.id === id && skin.enabled);
       return entry ? id : "builtin.light";
@@ -207,7 +208,7 @@ export class SkinRegistry {
     }
     await mkdir(this.directory, { recursive: true });
     const settings = { defaultSkinId: id };
-    await writeAtomicJson(path.join(this.directory, "settings.json"), settings);
+    await writeAtomicJson(path.join(this.directory, "settings.json"), { ...settings, builtinPolicyVersion: 2 });
     return settings;
   }
 }

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="modal-backdrop"
+    class="modal-backdrop audio-settings-backdrop"
     @click.self="emit('close')"
   >
     <section

@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-root">
+  <div class="admin-root" :lang="language">
     <div
       v-if="loading"
       class="center-card compact"
@@ -11,15 +11,7 @@
       class="login-page"
     >
       <section class="login-card">
-        <div class="admin-brand centered"
-          ><span
-            ><Icon
-              name="waveform"
-              :size="24" /></span
-          ><div
-            ><strong>WebSpeak</strong><small>{{ tr("adminConsole") }}</small></div
-          ></div
-        >
+        <ProductBrand class="admin-brand centered" :size="48" :home-label="appearanceCopy(language).home" :subtitle="tr('adminConsole')" />
         <header
           ><h1>{{ tr("changePasswordTitle") }}</h1
           ><p>{{ tr("changePasswordLead") }}</p></header
@@ -57,13 +49,12 @@
             >{{ tr("savePassword") }}</button
           ></form
         >
-        <p class="security-note">{{ tr("defaultCredentialNotice") }}</p
-        ><LanguageSwitcher
-          v-model="language"
-          class="language-link"
-          :menu-label="tr('languageMenu')"
-          @change="persistLanguage"
-        />
+        <p class="security-note">{{ tr("defaultCredentialNotice") }}</p>
+        <div class="login-actions">
+          <RouterLink to="/" class="home-link"><Icon name="home" :size="15" />{{ tr("backHome") }}</RouterLink>
+          <SkinSwitcher :model-value="themeSkinId" :menu-label="appearanceCopy(language).theme" :options="themeOptions" @change="selectTheme" />
+          <LanguageSwitcher v-model="language" :menu-label="tr('languageMenu')" @change="persistLanguage" />
+        </div>
       </section>
     </main>
 
@@ -72,15 +63,7 @@
       class="login-page"
     >
       <section class="login-card">
-        <div class="admin-brand centered"
-          ><span
-            ><Icon
-              name="waveform"
-              :size="24" /></span
-          ><div
-            ><strong>WebSpeak</strong><small>{{ tr("adminConsole") }}</small></div
-          ></div
-        >
+        <ProductBrand class="admin-brand centered" :size="48" :home-label="appearanceCopy(language).home" :subtitle="tr('adminConsole')" />
         <header
           ><h1>{{ tr("welcomeAdmin") }}</h1
           ><p>{{ tr("loginLead") }}</p></header
@@ -113,20 +96,11 @@
             >{{ tr("login") }}</button
           ></form
         >
-        <div class="login-actions"
-          ><RouterLink
-            to="/"
-            class="home-link"
-            ><Icon
-              name="home"
-              :size="15"
-            />{{ tr("backHome") }}</RouterLink
-          ><LanguageSwitcher
-            v-model="language"
-            class="language-link"
-            :menu-label="tr('languageMenu')"
-            @change="persistLanguage"
-        /></div>
+        <div class="login-actions">
+          <RouterLink to="/" class="home-link"><Icon name="home" :size="15" />{{ tr("backHome") }}</RouterLink>
+          <SkinSwitcher :model-value="themeSkinId" :menu-label="appearanceCopy(language).theme" :options="themeOptions" @change="selectTheme" />
+          <LanguageSwitcher v-model="language" :menu-label="tr('languageMenu')" @change="persistLanguage" />
+        </div>
       </section>
     </main>
 
@@ -135,15 +109,7 @@
       class="admin-shell"
     >
       <aside class="admin-sidebar">
-        <div class="admin-brand"
-          ><span
-            ><Icon
-              name="waveform"
-              :size="22" /></span
-          ><div
-            ><strong>WebSpeak</strong><small>{{ tr("adminConsole") }}</small></div
-          ></div
-        >
+        <ProductBrand class="admin-brand" :size="32" :home-label="appearanceCopy(language).home" :subtitle="tr('adminConsole')" />
         <nav :aria-label="tr('adminConsole')" class="admin-primary-nav">
           <div class="admin-nav-group">
             <span class="admin-nav-heading">{{ tr('adminWsGroup') }}</span>
@@ -199,17 +165,7 @@
               ></span
               ><span class="gateway-status-label">{{ tr("gatewayRunning") }}</span></span
             >
-            <button
-              type="button"
-              class="theme-toggle"
-              :title="themeLabel"
-              :aria-label="themeLabel"
-              @click="cycleTheme"
-              ><Icon
-                :name="themeIcon"
-                :size="17"
-              /><span>{{ themeLabel }}</span></button
-            >
+            <SkinSwitcher :model-value="themeSkinId" :menu-label="appearanceCopy(language).theme" :options="themeOptions" @change="selectTheme" />
             <LanguageSwitcher
               v-model="language"
               :menu-label="tr('languageMenu')"
@@ -413,7 +369,10 @@ import { useAdminSkins } from "../composables/useAdminSkins.js";
 import { useAdminTsAdmin } from "../composables/useAdminTsAdmin.js";
 import { splitTeamSpeakTarget } from "../services/teamspeak-target.js";
 import type { SiteLanguage } from "../../../src/site-copy.js";
-import { applyTheme, getStoredTheme, isDarkTheme, nextTheme, saveTheme, type ThemeMode } from "../services/theme.js";
+import ProductBrand from "../components/ProductBrand.vue";
+import SkinSwitcher from "../components/SkinSwitcher.vue";
+import { appearanceCopy } from "../i18n/appearance.js";
+import { hostTheme, saveTheme } from "../services/theme.js";
 
 type Screen = "login" | "change-password" | "admin";
 
@@ -423,10 +382,12 @@ const storedLanguage = localStorage.getItem("webspeak:language");
 const language = ref<SiteLanguage>(storedLanguage === "en" || storedLanguage === "de" || storedLanguage === "ru" || storedLanguage === "ja" ? storedLanguage : typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("ru") ? "ru" : typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("ja") ? "ja" : "zh");
 const i18n = useAdminI18n(language);
 const { tr, formatDate, formatUptime, eventName, errorText } = i18n;
-const themeMode = ref<ThemeMode>(getStoredTheme());
-const themeIcon = computed(() => isDarkTheme(themeMode.value) ? "sun" : "moon");
-const themeLabel = computed(() => isDarkTheme(themeMode.value) ? tr("switchToLightTheme") : tr("switchToDarkTheme"));
-applyTheme(themeMode.value);
+const themeSkinId = computed(() => hostTheme.value === "dark" ? "builtin.dark" : "builtin.light");
+const themeOptions = computed(() => [
+  { value: "builtin.light", label: appearanceCopy(language.value).day, icon: "sun" },
+  { value: "builtin.dark", label: appearanceCopy(language.value).night, icon: "moon" },
+]);
+function selectTheme(id: string) { saveTheme(id === "builtin.dark" ? "dark" : "light"); }
 const loading = ref(true);
 const screen = ref<Screen>("login");
 const csrfToken = ref("");
@@ -603,7 +564,7 @@ async function dismissLegacyNotice() {
   finally { request.finish(); }
 }
 function persistLanguage() { localStorage.setItem("webspeak:language", language.value); }
-function cycleTheme() { themeMode.value = nextTheme(themeMode.value); saveTheme(themeMode.value); }
 </script>
 
 <style scoped src="../styles/admin.css"></style>
+<style scoped src="../styles/admin-appearance.css"></style>

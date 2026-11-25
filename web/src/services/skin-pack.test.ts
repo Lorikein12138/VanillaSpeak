@@ -105,40 +105,36 @@ test("all public skin parts are documented and the admin console is outside skin
   const [components, adminComponents] = await Promise.all([
     componentSources("../components/web-client/"), componentSources("../components/admin/"),
   ]);
-  const [webClient, demo, skinSwitcher, languageSwitcher, hostChrome, pluginPanel, authorization, recoveryNotice, admin, documentation] = await Promise.all([
+  const [webClient, demo, skinSwitcher, languageSwitcher, hostChrome, pluginPanel, recoveryNotice, admin, documentation] = await Promise.all([
     readFile(new URL("../views/WebClient.vue", import.meta.url), "utf8"),
     readFile(new URL("../views/DemoView.vue", import.meta.url), "utf8"),
     readFile(new URL("../components/SkinSwitcher.vue", import.meta.url), "utf8"),
     readFile(new URL("../components/LanguageSwitcher.vue", import.meta.url), "utf8"),
     readFile(new URL("../components/HostChrome.vue", import.meta.url), "utf8"),
     readFile(new URL("../components/PluginPanel.vue", import.meta.url), "utf8"),
-    readFile(new URL("../components/InstanceAuthorization.vue", import.meta.url), "utf8"),
     readFile(new URL("../components/SkinLoadRecoveryNotice.vue", import.meta.url), "utf8"),
     readFile(new URL("../views/AdminView.vue", import.meta.url), "utf8"),
     readFile(new URL("../../../docs/SKIN_DEVELOPMENT.md", import.meta.url), "utf8"),
   ]);
-  const publicParts = new Set([...`${webClient}\n${components}\n${demo}\n${skinSwitcher}\n${languageSwitcher}\n${hostChrome}\n${pluginPanel}\n${authorization}\n${recoveryNotice}`.matchAll(/data-ws-part="([^"]+)"/g)].map((match) => match[1]));
+  const publicParts = new Set([...`${webClient}\n${components}\n${demo}\n${skinSwitcher}\n${languageSwitcher}\n${hostChrome}\n${pluginPanel}\n${recoveryNotice}`.matchAll(/data-ws-part="([^"]+)"/g)].map((match) => match[1]));
   for (const part of publicParts) assert.ok(documentation.includes(`\`${part}\``), `Undocumented skin part: ${part}`);
   assert.match(skinSwitcher, /data-ws-skin-id/);
   assert.match(skinSwitcher, /data-ws-state/);
   assert.match(languageSwitcher, /data-ws-language/);
   assert.doesNotMatch(`${admin}\n${adminComponents}`, /ws-skin-root|data-ws-page=/);
   assert.doesNotMatch(demo, /:global\(:root\[data-theme="dark"\]\)/);
-  assert.match(demo, /\.demo-page\[data-ws-skin="builtin\.dark"\]/);
+  assert.match(demo, /hostTheme\.value/);
+  assert.doesNotMatch(demo, /SkinPluginOutlet|usePublicSkin/);
 });
 
-test("public skin and language selectors keep readable light surfaces in dark mode", async () => {
-  const [skinSwitcher, languageSwitcher, darkSkin] = await Promise.all([
-    readFile(new URL("../components/SkinSwitcher.vue", import.meta.url), "utf8"),
-    readFile(new URL("../components/LanguageSwitcher.vue", import.meta.url), "utf8"),
-    readFile(new URL("../skins/builtin/dark/skin.css", import.meta.url), "utf8"),
-  ]);
-
-  assert.match(skinSwitcher, /\.skin-trigger\s*\{[^}]*background:\s*rgba\(250,\s*254,\s*255/i);
-  assert.match(skinSwitcher, /\.skin-dropdown\s*\{[^}]*background:\s*linear-gradient/i);
-  assert.match(skinSwitcher, /\.skin-option\s*\{[^}]*color:\s*#123849/i);
-  assert.match(languageSwitcher, /\.language-dropdown\s*\{[^}]*background:\s*#fff/i);
-  assert.doesNotMatch(darkSkin, /\.language-switcher\s+\.language-(?:trigger|dropdown|option)/);
+test("public selectors use shared theme, focus, and action tokens", async () => {
+  for (const name of ["SkinSwitcher", "LanguageSwitcher"]) {
+    const source = await readFile(new URL("../components/" + name + ".vue", import.meta.url), "utf8");
+    assert.match(source, /background: var\(--raised\)/);
+    assert.match(source, /border: 1px solid var\(--control-border\)/);
+    assert.match(source, /@keydown\.down\.prevent/);
+    assert.match(source, /@keydown\.esc\.stop/);
+  }
 });
 
 test("skin content supports localized interface message overrides and includes the preview as an asset", async () => {
@@ -181,20 +177,12 @@ test("mobile chat starts closed and follows viewport changes", async () => {
   assert.match(chat, /panelOpen\.value = !isMobileViewport\.value;/);
 });
 
-test("homepage motion and room content spacing remain consistent", async () => {
-  const css = await readFile(new URL("../styles/web-client.css", import.meta.url), "utf8");
-  assert.ok(css.includes('.join-page :deep(*:not([data-ws-part="home.join-card"]))'));
-  assert.ok(css.includes("animation: none !important"));
-  assert.doesNotMatch(css, /\.join-page \*, \.join-page \*::before, \.join-page \*::after\s*\{\s*animation: none !important/);
-  assert.ok(css.includes("padding: 0 clamp(12px, 1.4vw, 22px);"), "homepage header contents keep an inset from their container edge");
-  assert.match(css, /\.chat-panel\s*\{\s*margin-top: 34px;\s*padding: 0 clamp\(14px, 1\.8vw, 24px\) 20px;/, "chat children keep horizontal and bottom breathing room");
-  assert.match(css, /\.app-shell \.voice-section \{\s*position: relative;\s*padding: clamp\(14px, 1\.8vw, 24px\);/);
-  assert.match(css, /@media \(max-width: 740px\) \{\s*\.app-shell \.voice-section \{\s*padding: 14px 10px 16px;/);
-  assert.match(css, /\.promise-list \{\s*display: grid;\s*width: 100%;\s*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
-  assert.match(css, /\.promise-item \{\s*min-width: 0;\s*min-height: 58px;[\s\S]*?padding: 9px 11px;/);
-  assert.match(css, /@media \(max-width: 420px\) \{\s*\.promise-list \{\s*grid-template-columns: minmax\(0, 1fr\);/);
-  assert.match(css, /\.join-card-waveform i \{[^}]*animation: screen-share-wave 1\.1s ease-in-out infinite alternate;/);
-  assert.match(css, /@keyframes join-card-sonar-ring[\s\S]*?transform: scale\(\.6\);\s*opacity: \.62;[\s\S]*?transform: scale\(1\);\s*opacity: 0;/);
+test("the host header and preferences live outside the public surface, with one join action", async () => {
+  const source = await readFile(new URL("../views/WebClient.vue", import.meta.url), "utf8");
+  assert.ok(source.indexOf("<WebClientHeader") < source.indexOf("'ws-skin-root'"));
+  assert.match(source, /<ExtensionPreferences/);
+  assert.doesNotMatch(source, /qqJoinUrl|qqModalOpen|join-card-waveform/);
+  assert.match(source, /<JoinForm/);
 });
 
 function makeSkin(css: string, content?: unknown): File {
@@ -398,413 +386,6 @@ test("a v4 surface cannot compete with a v3 surface on the same public page", as
     importSkinPack(new File([archive.slice().buffer as ArrayBuffer], "competing-surfaces.wskin")),
     (error: unknown) => error instanceof SkinPackError && error.code === "SKIN_PLUGIN_SURFACE_DUPLICATE",
   );
-});
-
-test("the distributable KAAK package provides full home and voice surfaces", async () => {
-  const archive = await readFile(new URL("../../../docs/examples/kaak-voice.wskin", import.meta.url));
-  const bundledArchive = await readFile(new URL("../../public/skins/kaak-voice.wskin", import.meta.url));
-  assert.deepEqual(archive, bundledArchive, "the downloadable example and bundled skin stay in sync");
-  const file = new File([archive], "kaak-voice.wskin", { type: "application/octet-stream" });
-  const skin = await importSkinPack(file);
-  assert.equal(skin.id, "community.kaak-voice");
-  assert.equal(skin.version, "3.1.134");
-  assert.equal(skin.workspace, undefined);
-  assert.equal(skin.minAppVersion, "0.3.2");
-  assert.equal(BUILTIN_SKIN_CATALOG.find((entry) => entry.id === skin.id)?.version, skin.version);
-  assert.equal(skin.schemaVersion, 3);
-  const baseMessages = skin.contentData?.locales["zh-CN"]?.messages ?? {};
-  for (const locale of ["zh-CN", "en", "de", "ru", "ja"]) {
-    assert.deepEqual(
-      Object.keys(skin.contentData?.locales[locale]?.messages ?? {}).sort(),
-      Object.keys(baseMessages).sort(),
-      `KAAK provides the same complete message set for ${locale}`,
-    );
-  }
-  const home = skin.pluginData?.components.find((component) => component.page === "home");
-  const voice = skin.pluginData?.components.find((component) => component.page === "voice");
-  assert.ok(voice?.permissions.includes("voice.connect"));
-  assert.match(JSON.stringify(voice?.root), /"widget":"voice.connection-status"/);
-  assert.match(JSON.stringify(voice?.root), /"widget":"voice.plugin-launcher".*?"pluginPresentation":"drawer-side"/);
-  assert.match(JSON.stringify(voice?.root), /"widget":"home.social-links".*?"communityLinks":false/);
-  assert.deepEqual(skin.pluginData?.components.map((component) => [component.id, component.mode]), [
-    ["kaak-home", "surface"],
-    ["kaak-workspace", "surface"],
-  ]);
-  assert.ok(home?.permissions.includes("ui.surface.replace"));
-  assert.match(skin.css, /kaak-home\.home"\]\s*\{[\s\S]*?height: calc\(var\(--ws-viewport-height, 100dvh\) \/ var\(--ui-scale, 1\)\);[\s\S]*?overflow-y: auto;/, "only the explicitly named KAAK home root receives viewport layout styles");
-  assert.doesNotMatch(skin.css, /\[data-ws-plugin-part="kaak-home"\]\s*\{/, "unlabelled SVG nodes cannot inherit home root sizing rules");
-  assert.match(skin.css, /kaak-home\.right"\]\s*\{[\s\S]*?padding: 210px 28px 45px;/, "the login card keeps its existing vertical position");
-  assert.match(skin.css, /kaak-home\.hero"\]\s*\{[\s\S]*?display: grid;[\s\S]*?grid-template-rows: auto auto auto minmax\(0, 1fr\);/, "the announcement and illustration have separate rows within the left panel");
-  assert.match(skin.css, /kaak-home\.hero-media"\]\s*\{[\s\S]*?position: relative;[\s\S]*?margin: clamp\(16px, 2\.8dvh, 32px\) 6% 5%;/, "the left illustration follows the announcement with a bounded gap");
-  assert.match(skin.css, /@media \(max-width: 850px\)[\s\S]*?\[data-ws-plugin-part="kaak-home\.hero"\]\s*\{\s*display: none;/, "the narrow connection home hides the green hero and screen illustration");
-  assert.match(skin.css, /@media \(max-width: 850px\)[\s\S]*?\[data-ws-plugin-part="kaak-home\.welcome-title"\]\s*\{\s*display: none;/, "the narrow connection home shows only the login card");
-  assert.equal(voice?.stateScope, "session.status.channelId");
-  assert.equal(voice?.state?.channelspage, false);
-  assert.equal(voice?.actions["toggle-mobile-page"]?.type, "ui.toggleState");
-  assert.equal(voice?.actions["toggle-mobile-page"]?.args.resetKey, "roommenu");
-  assert.equal(voice?.root.attributes?.["data-mobile-channels"], "{{state.channelspage}}");
-  assert.equal(voice?.root.attributes?.["data-session-connected"], "{{session.status.connected}}");
-  assert.ok(voice?.permissions.includes("ui.surface.replace"));
-  assert.ok(voice?.permissions.includes("servers.quickList.read"));
-  assert.ok(voice?.permissions.includes("servers.quickList.switch"));
-  assert.ok(voice?.permissions.includes("session.status.read"));
-  assert.ok(voice?.permissions.includes("session.invite.copy"));
-  assert.equal(voice?.actions["copy-invite-link"]?.type, "session.copyInviteLink");
-  assert.ok(voice?.permissions.includes("session.channels.read"));
-  assert.ok(voice?.permissions.includes("session.members.read"));
-  assert.ok(voice?.permissions.includes("session.memberAvatars.read"));
-  assert.ok(voice?.permissions.includes("chat.channel.read"));
-  assert.ok(voice?.permissions.includes("chat.channel.send"));
-  assert.ok(voice?.permissions.includes("audio.microphone.control"));
-  assert.ok(voice?.permissions.includes("audio.output.control"));
-  assert.equal(voice?.permissions.includes("voice.screenShare.read"), true);
-  assert.equal(voice?.permissions.includes("voice.screenShare.control"), true);
-  assert.equal(voice?.permissions.includes("voice.screenShare.status.read"), true);
-  function findPart(node: SkinPluginNode | undefined, part: string): SkinPluginNode | undefined {
-    if (!node) return undefined;
-    if (node.part === part) return node;
-    for (const child of node.children ?? []) {
-      const found = findPart(child, part);
-      if (found) return found;
-    }
-    return undefined;
-  }
-  assert.equal(home?.name, "{{skin.messages.kaakHomeComponentName}}");
-  assert.equal(home?.accessibleName, "{{skin.messages.kaakHomeAccessibleName}}");
-  assert.equal(findPart(home?.root, "welcome-title")?.children?.[0]?.text, "{{skin.messages.kaakWelcomeTitle}}");
-  assert.equal(voice?.name, "{{skin.messages.kaakVoiceComponentName}}");
-  assert.equal(voice?.accessibleName, "{{skin.messages.kaakVoiceAccessibleName}}");
-  assert.equal(findPart(voice?.root, "voice-stage")?.attributes?.["aria-label"], "{{skin.messages.kaakVoiceRoomAccessibleName}}");
-  assert.equal(findPart(home?.root, "home-language")?.widget, "app.language-switcher", "the KAAK connection home has a language switcher in its top corner");
-  assert.equal(findPart(home?.root, "server-announcement")?.widget, "home.server-announcement", "the KAAK connection home displays the localized administrator announcement");
-  assert.equal(findPart(home?.root, "visitor-stats")?.widget, "home.visitor-count", "the KAAK home composes the public visitor count widget over the monitor screen");
-  assert.match(skin.css, /kaak-home\.visitor-stats"\]\s*\{[^}]*position: absolute;[^}]*top: 64%;[^}]*left: 50%;[^}]*max-width: 58%;/, "visitor statistics are contained within the monitor screen by the package");
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-home\.hero"\]\s*\{[^}]*overflow: visible;/, "the hero does not clip the announcement as it spans the full home width");
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-home\.server-announcement"\][^}]*width: calc\(100% - 40px\);[^}]*margin: 20px 20px 0;/, "the announcement card fills its half-width hero with 20px side margins");
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-home\.server-announcement"\] \[data-ws-part="home\.server-announcement\.body"\]\s*\{[^}]*color: #273248;/, "the announcement uses the published semantic text part with a readable color");
-  const illustration = findPart(home?.root, "illustration");
-  assert.equal(illustration?.attributes?.viewbox, "0 0 640 480", "the KAAK illustration uses a balanced 4:3 viewBox");
-  const monitorFrame = illustration?.children?.[5];
-  const screenBackground = illustration?.children?.[6];
-  const screenHeader = illustration?.children?.[7];
-  assert.deepEqual([monitorFrame?.attributes?.x, monitorFrame?.attributes?.y, monitorFrame?.attributes?.width, monitorFrame?.attributes?.height], [120, 110, 400, 288]);
-  assert.equal(screenBackground?.attributes?.d, "M147 122h346a15 15 0 0 1 15 15v234a15 15 0 0 1-15 15H147a15 15 0 0 1-15-15V137a15 15 0 0 1 15-15Z");
-  assert.equal(screenHeader?.attributes?.d, "M147 122h346a15 15 0 0 1 15 15v31H132v-31a15 15 0 0 1 15-15Z");
-  assert.match(skin.css, /kaak-home\.hero"\]\s*\{[^}]*min-width: 0;/, "the illustration column can shrink without overlapping the adjacent home panel");
-  assert.match(skin.css, /kaak-home\.hero-media"\]\s*\{[^}]*width: auto;[^}]*min-width: 0;[^}]*margin: clamp\(16px, 2\.8dvh, 32px\) 6% 5%;/, "the monitor artwork fits between its left and right margins without clipping");
-  assert.equal(findPart(home?.root, "home-social-links")?.widget, "home.social-links", "the KAAK connection home exposes icon links beside the language switcher");
-  assert.equal(findPart(home?.root, "identity-provider")?.widget, "home.identity-provider");
-  assert.deepEqual(findPart(home?.root, "identity-provider")?.options, { identityProviderId: "myts", identityProviderLabel: "myts" });
-  assert.doesNotMatch(skin.css, /kaak-home-announcement-text|kaak-home-social-links|kaak-home-status|kaak-myts/);
-  assert.match(skin.css, /kaak-home\.home-social-links"\]\s*\{[^}]*position: fixed;[^}]*top: 18px;[^}]*right: 74px;/);
-  assert.match(skin.css, /kaak-home\.home-social-links"\] \[data-ws-part="home\.social-links"\]\s*\{[^}]*display: flex;[^}]*gap: 8px;/);
-  assert.equal(findPart(voice?.root, "topbar"), undefined, "the KAAK voice surface has no top bar");
-  assert.equal(findPart(voice?.root, "rail-skin")?.widget, "app.skin-switcher", "skin selection lives in the server rail");
-  assert.equal(findPart(voice?.root, "rail-language")?.widget, "app.language-switcher", "language selection lives in the server rail");
-  assert.equal(findPart(voice?.root, "server-list")?.children?.[0]?.repeat?.path, "servers.quickList");
-  assert.deepEqual(findPart(voice?.root, "member-cards")?.options, { screenShare: true, memberActions: true });
-  assert.equal(findPart(voice?.root, "server-summary")?.widget, "voice.server-header");
-  assert.equal(findPart(voice?.root, "server-banner")?.widget, "voice.server-banner");
-  assert.deepEqual(findPart(voice?.root, "mobile-room-return")?.when, { path: "session.status.connected", equals: true });
-  assert.equal(findPart(voice?.root, "mobile-room-return")?.events?.click, "toggle-mobile-page");
-  assert.equal(findPart(voice?.root, "mobile-room-topbar")?.children?.[0]?.events?.click, "toggle-mobile-page");
-  assert.equal(findPart(voice?.root, "mobile-room-more-toggle")?.events?.click, "toggle-room-menu");
-  assert.equal(findPart(voice?.root, "mobile-room-chat-open")?.events?.click, "toggle-chat-panel");
-  assert.equal(findPart(voice?.root, "mobile-room-sheet"), undefined, "the narrow room page reuses the sample-matched voice console");
-  const roomControls = findPart(voice?.root, "mobile-room-controls");
-  assert.equal(roomControls?.attributes?.role, "toolbar");
-  assert.deepEqual(roomControls?.children?.map((control) => control.part), [
-    "mobile-room-microphone", "mobile-room-deafen", "mobile-room-speaker", "mobile-room-share", "mobile-room-share-active", "mobile-room-exit",
-  ]);
-  assert.equal(findPart(roomControls, "mobile-room-microphone")?.events?.click, "toggle-microphone");
-  assert.equal(findPart(roomControls, "mobile-room-deafen")?.events?.click, "toggle-output-mute");
-  assert.equal(findPart(roomControls, "mobile-room-speaker")?.events?.click, "open-audio-settings");
-  assert.equal(findPart(roomControls, "mobile-room-share")?.events?.click, "start-screen-share");
-  assert.equal(findPart(roomControls, "mobile-room-share-active")?.events?.click, "stop-screen-share");
-  assert.equal(findPart(roomControls, "mobile-room-exit")?.events?.click, "disconnect");
-  assert.equal(voice?.actions["open-audio-settings"]?.type, "audio.openSettings");
-  assert.equal(findPart(voice?.root, "audio-controls"), undefined, "KAAK declares its desktop audio toolbar in the package instead of selecting a host layout");
-  const desktopRoomControls = findPart(voice?.root, "desktop-room-controls");
-  assert.equal(desktopRoomControls?.attributes?.role, "toolbar");
-  assert.equal(findPart(desktopRoomControls, "desktop-room-settings")?.events?.click, "open-audio-settings");
-  const audioSettingsIcon = findPart(desktopRoomControls, "desktop-room-settings")?.children?.find((child) => child.tag === "svg");
-  assert.match(String(audioSettingsIcon?.children?.[1]?.attributes?.d ?? ""), /^M10 2h4/, "the settings gear uses a centered, complete outline");
-  assert.equal(findPart(desktopRoomControls, "desktop-room-noise-suppression")?.events?.click, "toggle-noise-suppression");
-  assert.equal(findPart(desktopRoomControls, "desktop-room-microphone")?.events?.click, "toggle-microphone");
-  assert.equal(findPart(desktopRoomControls, "desktop-room-output")?.events?.click, "toggle-output-mute");
-  assert.equal(findPart(desktopRoomControls, "desktop-room-accompaniment")?.events?.click, "toggle-accompaniment");
-  assert.equal(voice?.actions["toggle-noise-suppression"]?.type, "audio.toggleNoiseSuppression");
-  assert.equal(voice?.actions["toggle-accompaniment"]?.type, "audio.toggleAccompaniment");
-  assert.equal(findPart(voice?.root, "record-placeholder"), undefined, "the KAAK voice dock has no recording control");
-  assert.equal(findPart(voice?.root, "voice-channel-tree")?.widget, "voice.channel-tree");
-  assert.deepEqual(findPart(voice?.root, "voice-channel-tree")?.options, { layout: "server-sidebar", memberActions: true, memberDragDrop: true });
-  assert.equal(findPart(voice?.root, "channel-row"), undefined, "channels render in the trusted nested tree widget");
-  assert.equal(voice?.actions["select-channel"], undefined);
-  assert.equal(voice?.actions["join-channel"], undefined);
-  assert.equal(findPart(voice?.root, "text-channel-group-toggle"), undefined);
-  assert.equal(findPart(voice?.root, "text-channel-list"), undefined);
-  const voiceGroupToggle = findPart(voice?.root, "voice-channel-group-toggle");
-  assert.equal(voiceGroupToggle?.events?.click, "toggle-voice-group");
-  assert.equal(voiceGroupToggle?.attributes?.["aria-expanded"], "{{state.voicegroupopen}}");
-  assert.equal(findPart(voice?.root, "voice-channel-list")?.when, undefined, "the collapsible channel list stays mounted during its transition");
-  assert.equal(voice?.root.attributes?.["data-voice-group-open"], "{{state.voicegroupopen}}");
-  const chatToggle = findPart(voice?.root, "chat-panel-toggle");
-  assert.equal(chatToggle?.events?.click, "toggle-chat-panel");
-  assert.equal(chatToggle?.attributes?.["aria-expanded"], "{{chat.status.panelOpen}}");
-  assert.equal(voice?.actions["toggle-chat-panel"]?.type, "chat.togglePanel");
-  assert.equal(findPart(voice?.root, "conversation")?.attributes?.["data-chat-open"], "{{chat.status.panelOpen}}");
-  const chatExpand = findPart(voice?.root, "chat-panel-expand");
-  assert.deepEqual(chatExpand?.when, { path: "chat.status.panelOpen", equals: false });
-  assert.equal(chatExpand?.events?.click, "toggle-chat-panel");
-  assert.equal(chatExpand?.attributes?.["aria-expanded"], "{{chat.status.panelOpen}}");
-  assert.equal(chatExpand?.children?.[0]?.text, "#");
-  const voiceStageInvite = findPart(voice?.root, "voice-stage-invite");
-  assert.equal(voiceStageInvite?.events?.click, "copy-invite-link");
-  assert.equal(voiceStageInvite?.attributes?.["aria-label"], "{{skin.messages.kaakCopyInviteLink}}");
-  assert.equal(findPart(voice?.root, "chat-panel")?.widget, "voice.chat-panel");
-  assert.deepEqual(findPart(voice?.root, "chat-panel")?.when, { path: "chat.status.panelOpen", equals: true });
-  assert.equal(voice?.root.attributes?.["data-chat-open"], "{{chat.status.panelOpen}}");
-  assert.equal(findPart(voice?.root, "whisper-controls"), undefined, "the KAAK surface does not add a duplicate whisper button");
-  assert.equal(findPart(voice?.root, "mobile-room-invite-copy")?.events?.click, "copy-invite-link");
-  assert.equal(voice?.actions["whisper-on"], undefined);
-  assert.equal(voice?.actions["whisper-off"], undefined);
-  assert.equal(voice?.permissions.includes("voice.whisper.control"), false);
-  assert.equal(voice?.permissions.includes("voice.whisper.status.read"), false);
-  assert.equal(findPart(voice?.root, "server-icon")?.attributes?.src, "{{server.icon}}");
-  assert.equal(findPart(voice?.root, "server-monogram-initial")?.children?.[0]?.text, "{{server.monogram}}");
-  assert.equal(findPart(voice?.root, "server-monogram")?.attributes?.["data-tone"], "{{server.tone}}");
-  assert.deepEqual(findPart(voice?.root, "identity-online")?.when, { path: "session.status.connected", equals: true });
-  assert.equal(findPart(voice?.root, "identity-online")?.attributes?.role, "img");
-  const voiceStageHeadingItem = findPart(voice?.root, "voice-stage-heading-item");
-  assert.equal(voiceStageHeadingItem?.repeat?.path, "session.channels");
-  const voiceStageHeading = findPart(voiceStageHeadingItem, "voice-stage-heading");
-  assert.deepEqual(voiceStageHeading?.when, { path: "stagechannel.current", equals: true });
-  assert.equal(findPart(voiceStageHeading, "mobile-channel-back")?.events?.click, "toggle-mobile-page");
-  assert.equal(findPart(voiceStageHeading, "voice-stage-glyph")?.children?.[0]?.text, "🔊︎");
-  assert.equal(findPart(voiceStageHeading, "voice-stage-title")?.children?.[0]?.text, "{{stagechannel.name}}");
-  assert.equal(findPart(voiceStageHeading, "voice-stage-member-count")?.children?.[0]?.text, "{{stagechannel.memberCountLabel}}");
-  assert.deepEqual(findPart(voiceStageHeading, "voice-stage-capacity")?.when, { path: "stagechannel.maxClientsLimited", equals: true });
-  assert.equal(findPart(voiceStageHeading, "voice-stage-capacity")?.children?.[0]?.text, "/{{stagechannel.maxClients}}");
-  assert.equal(findPart(voice?.root, "channel-count"), undefined, "real member counts come from the host-owned channel tree");
-  assert.equal(findPart(voice?.root, "channel-voice-member"), undefined, "avatar resources stay inside trusted host UI");
-  assert.equal(findPart(voice?.root, "voice-stage")?.attributes?.["aria-label"], "{{skin.messages.kaakVoiceRoomAccessibleName}}");
-  assert.equal(findPart(voice?.root, "member-cards")?.widget, "voice.member-cards");
-  assert.deepEqual(findPart(voice?.root, "member-cards")?.options, { screenShare: true, memberActions: true });
-  assert.equal(findPart(voice?.root, "member-list"), undefined);
-  assert.equal(findPart(voice?.root, "screen-share-player")?.widget, "voice.screen-share-player");
-  assert.equal(findPart(voice?.root, "performance-panel")?.widget, "voice.performance-panel");
-  assert.equal(findPart(voice?.root, "performance-panel")?.options?.screenShare, undefined, "KAAK should show screen-share transport stats in the host panel");
-  assert.equal(findPart(voice?.root, "chat-input"), undefined, "KAAK uses the host-owned unified chat composer");
-  assert.ok(skin.css.includes("data-session-connected=\"true\""));
-  assert.ok(skin.css.includes("[data-ws-plugin-part=\"kaak-workspace.workspace\"][data-session-connected=\"true\"]:not([data-mobile-channels=\"true\"])"));
-  assert.ok(skin.css.includes("[data-ws-plugin-part=\"kaak-workspace\"][data-ws-plugin-surface=\"voice\"]:has([data-ws-plugin-part=\"kaak-workspace.chat-panel-toggle\"][aria-expanded=\"false\"])"));
-  assert.match(skin.css, /\.ws-skin-root\[data-ws-skin="community\.kaak-voice"\]\s+\[data-ws-plugin-part="kaak-workspace"\]\[data-ws-plugin-surface="voice"\]\s*\{[^}]*height: calc\(var\(--ws-viewport-height, 100dvh\) \/ var\(--ui-scale, 1\)\);[^}]*max-height: calc\(var\(--ws-viewport-height, 100dvh\) \/ var\(--ui-scale, 1\)\);/, "the voice surface compensates application zoom so the bottom dock stays within the viewport");
-  assert.doesNotMatch(skin.css, /\[data-ws-plugin-part="kaak-workspace"\](?!\[data-ws-plugin-surface="voice"\])/, "KAAK workspace selectors must anchor to the voice surface root, not generic child nodes");
-  assert.ok(skin.css.includes("mobile-room-return"));
-  assert.ok(skin.css.includes('[data-ws-plugin-part="kaak-workspace.workspace"][data-session-connected="true"][data-mobile-channels="true"] [data-ws-plugin-part="kaak-workspace.mobile-room-menu"]'), "the room menu stays hidden on the channel tree page");
-  assert.ok(skin.css.includes("grid-template-columns: 86px minmax(0, 1fr)"));
-  assert.match(skin.css, /kaak-workspace\.conversation.*data-chat-open="true"[\s\S]*?position: fixed;[\s\S]*?inset: 0 0 0 86px;[\s\S]*?pointer-events: auto;/, "the compact chat stays beside the interactive server rail");
-  assert.match(skin.css, /@media \(max-width: 360px\)[\s\S]*?kaak-workspace\.conversation.*data-chat-open="true"\]\s*\{\s*inset-inline-start: 70px;/, "the compact chat respects the narrower server rail on small phones");
-  assert.match(skin.css, /data-mobile-channels="true"[\s\S]*?kaak-workspace\.conversation.*data-chat-open="true"[\s\S]*?display: none;\s*pointer-events: none;/, "an open chat panel cannot cover or intercept the channel-tree page");
-  assert.match(skin.css, /modal-backdrop:has\(\[data-ws-part="voice\.audio-settings"\]\)\s*\{\s*z-index: 1000;/, "the host audio settings dialog stays above the narrow chat overlay");
-  assert.match(skin.css, /kaak-workspace"\]\[data-ws-plugin-surface="voice"\]:has\([\s\S]{0,180}kaak-workspace\.voice-stage"\]\s*\{[^}]*grid-column: 1;[^}]*grid-row: 3;/, "the collapsed chat state must not push the connected narrow room into an implicit side column");
-  assert.match(skin.css, /kaak-workspace\.conversation\"]\[data-chat-open="true"\]\s*\{\s*position: absolute;/);
-  assert.match(skin.css, /voice-dock-actions"\] \{ grid-template-columns: minmax\(0, 1fr\) 28px 28px 36px; grid-template-rows: 29px 26px; column-gap: 6px; row-gap: 21px; \}/);
-  assert.match(skin.css, /voice-dock-actions"\]::after \{ top: 40px; \}/);
-  assert.match(skin.css, /max-width: 740px[\s\S]*?grid-template-rows: auto auto minmax\(0, 1fr\) auto;[\s\S]*?max-width: 500px;/);
-  assert.match(skin.css, /workspace\"\]\[data-session-connected=\"true\"\]:not\(\[data-mobile-channels=\"true\"\]\)[\s\S]*?server-rail[\s\S]*?display: none;/);
-  assert.match(skin.css, /voice-dock-actions"\] \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) 28px 28px 36px;[\s\S]*?grid-template-rows: 29px 26px;/);
-  assert.match(skin.css, /workspace"\]\[data-session-connected="true"\]:not\(\[data-mobile-channels="true"\]\) \[data-ws-plugin-part="kaak-workspace\.voice-dock"\] \{[\s\S]*?height: max-content;[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?grid-template-rows: 5px max-content;[\s\S]*?overflow: hidden;/, "the narrow room console stays content-sized in one column and clips controls to its boundary");
-  assert.match(skin.css, /mobile-room-control-disc[\s\S]*?aspect-ratio: 1;[\s\S]*?border-radius: 50%;/);
-  assert.match(skin.css, /mobile-room-controls[\s\S]*?width: min\(100%, 62px\);/);
-  assert.match(skin.css, /mobile-room-control-caption[\s\S]*?font-size: 11px;[\s\S]*?line-height: 1\.2;/);
-  assert.match(skin.css, /voice-dock-actions"\] \{ display: none; \}/);
-  assert.match(skin.css, /mobile-room-controls"\] \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);[\s\S]*?grid-template-rows: max-content;[\s\S]*?height: max-content;[\s\S]*?gap: 2px;/);
-  assert.match(skin.css, /\.mobile-room-(microphone|deafen|speaker|share|exit) \{ grid-column: [1-5]; \}/);
-  assert.equal(findPart(voice?.root, "conversation-title")?.children?.[0]?.text, "{{chat.status.tabLabel}}");
-  assert.equal(findPart(voice?.root, "connection-state"), undefined);
-  assert.equal(findPart(voice?.root, "chat-message"), undefined, "private, server, and channel messages use the same host panel");
-  assert.equal(findPart(voice?.root, "screen-share-start")?.widget, "voice.screen-share-start");
-  assert.equal(findPart(voice?.root, "screen-share-stop")?.events?.click, "stop-screen-share");
-  assert.equal(findPart(voice?.root, "audio-controls"), undefined);
-  assert.ok(skin.css.includes('[data-ws-plugin-part="kaak-workspace.server-summary"]'));
-  assert.ok(skin.css.includes('[data-ws-plugin-part="kaak-workspace.server-banner"]'));
-  assert.match(skin.css, /ws-voice-server-banner-image[\s\S]*?aspect-ratio: 1\.95 \/ 1;[\s\S]*?object-fit: cover;/);
-  assert.match(skin.css, /voice\.server-banner\.body[\s\S]*?white-space: pre-wrap;/);
-  assert.ok(skin.css.includes(".ws-voice-server-search-toggle"));
-  assert.ok(skin.css.includes(".ws-voice-server-switcher-menu"));
-  assert.ok(skin.css.includes('[data-ws-plugin-part="kaak-workspace"][data-ws-plugin-surface="voice"] .ws-voice-channel-row'));
-  assert.match(skin.css, /ws-voice-channel-node\[data-current="true"\][\s\S]*?box-shadow: inset 2px 0 var\(--skin-kaak-accent\);/);
-  assert.match(skin.css, /ws-voice-channel-branch\[data-expanded="false"\][\s\S]*?grid-template-rows: 0fr;/);
-  assert.match(skin.css, /ws-voice-channel-member-avatar[\s\S]*?border-radius: 50%;/);
-  assert.match(skin.css, /--skin-kaak-font:[\s\S]*?PingFang SC/);
-  assert.match(skin.css, /--skin-kaak-accent: #6cbf00;/);
-  assert.match(skin.css, /\[data-ws-part="auth\.password\.backdrop"\]\s*\{[^}]*background: rgba\(10, 11, 13, \.54\);/);
-  assert.match(skin.css, /\[data-ws-part="auth\.password\.dialog"\]\s*\{[^}]*width: min\(438px, calc\(100vw - 32px\)\);[^}]*min-height: 204px;[^}]*background: #242529;/);
-  assert.match(skin.css, /\[data-ws-part="auth\.password\.dialog"\]\[data-ws-state="server-password"\]\s*\{[^}]*color: #273248;[^}]*border-color: #e3e8ec;[^}]*background: #fff;/);
-  assert.match(skin.css, /\[data-ws-part="auth\.password\.title"\]\s*\{[^}]*font-size: 13px;[^}]*font-weight: 700;/);
-  assert.match(skin.css, /\[data-ws-part="auth\.password\.field"\]\s*\{[^}]*height: 40px;[^}]*border: 1px solid #3b3c40;[^}]*border-radius: 12px;/);
-  assert.match(skin.css, /auth\.password\.dialog"\]\[data-ws-state="server-password"\][\s\S]*?auth\.password\.field"\]\s*\{[^}]*border-color: #e3e8ec;[^}]*background: #fff;/);
-  assert.match(skin.css, /auth\.password\.dialog"\]\[data-ws-state="server-password"\][\s\S]*?input:-webkit-autofill[\s\S]*?-webkit-box-shadow: 0 0 0 1000px #fff inset;/);
-  assert.match(skin.css, /\[data-ws-part="home\.form"\] \[data-ws-part="home\.field"\]:has\(input\[type="password"\]\)\s*\{[^}]*height: 42px;[^}]*border-radius: 11px;[^}]*background: #fff;/);
-  assert.match(skin.css, /home\.field"\]:has\(input\[type="password"\]\) input:-webkit-autofill[\s\S]*?-webkit-box-shadow: 0 0 0 1000px #fff inset;[\s\S]*?-webkit-text-fill-color: #273248;/);
-  assert.match(skin.css, /\[data-ws-part="auth\.password\.actions"\] > button:last-child\s*\{[^}]*width: 82px;[^}]*height: 36px;[^}]*background: #6cbf00;/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.voice-dock"\] \{[\s\S]*?width: min\(282px, calc\(100% - 22px\)\);[\s\S]*?margin-bottom: 11px;[\s\S]*?border-radius: 17px;/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.voice-dock-actions"\] \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) 28px 28px 36px;[\s\S]*?grid-template-rows: 29px 26px;[\s\S]*?row-gap: 21px;/);
-  assert.match(skin.css, /ws-voice-channel-tree\[data-layout="server-sidebar"\] \.ws-voice-channel-line[\s\S]*?min-height: 38px;/);
-  assert.match(skin.css, /ws-voice-channel-tree\[data-layout="server-sidebar"\] \.ws-voice-channel-member[\s\S]*?min-height: 29px;/);
-  assert.match(skin.css, /ws-voice-channel-member:hover\s*\{[^}]*background: #303238;/);
-  assert.match(skin.css, /ws-voice-channel-row\[data-drag-over="true"\]\s*\{[^}]*box-shadow: inset 0 0 0 1px #72c866;/);
-  assert.doesNotMatch(skin.css, /kaak-workspace\.record-placeholder|kaak-workspace\.recording-label/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.desktop-room-controls"\] \{ display: contents; \}/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace"\]\[data-ws-plugin-surface="voice"\] \.desktop-audio-dock-copy \{ display: none; \}/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.voice-dock-share"\] \{ grid-column: 1 \/ 4; grid-row: 1;/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.voice-dock-share"\] \.skin-runtime-screen-share-start \{[\s\S]*?background: #69c000;/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.desktop-room-settings"\][\s\S]*?grid-column: 1;[\s\S]*?grid-row: 2;[\s\S]*?justify-content: flex-start;[\s\S]*?gap: 8px;/);
-  assert.match(skin.css, /desktop-room-controls"\]\s+\[data-ws-plugin-part="kaak-workspace\.desktop-room-settings"\]\s*\{[^}]*justify-self: stretch;[^}]*box-sizing: border-box;[^}]*width: 100%;[^}]*max-width: 100%;[^}]*min-width: 0;/, "the settings control fills its own grid track so its icon and label cannot escape the dock");
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.desktop-room-noise-suppression"\] \{ grid-column: 2; grid-row: 2; color: #fff; background: #6cbf00; \}/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.desktop-room-noise-suppression"\]\[aria-pressed="false"\],[\s\S]*?background: #e34848;/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.desktop-room-microphone"\] \{ grid-column: 3; grid-row: 2; \}/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.desktop-room-output"\] \{ grid-column: 4; grid-row: 2; \}/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.desktop-room-accompaniment"\] \{[\s\S]*?grid-column: 4;[\s\S]*?grid-row: 1;/);
-  assert.match(skin.css, /voice-dock-heading"\] \[data-ws-plugin-part="kaak-workspace\.disconnect-control"\]::before \{ content: "⏻";/);
-  assert.doesNotMatch(skin.css, /desktop-audio-dock-room-panel|room-panel-audio-settings|data-ws-plugin-part="kaak-workspace\.audio-controls"/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.desktop-room-accompaniment"\]\[aria-pressed="true"\] \{ background: #477f00;/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-workspace\.mobile-room-controls"\] \{ display: none; \}/);
-  assert.match(skin.css, /kaak-workspace\.mobile-room-controls[\s\S]*?\.mobile-room-microphone \{ grid-column: 1; \}/);
-  assert.match(skin.css, /kaak-workspace\.mobile-room-controls[\s\S]*?\.mobile-room-exit \{ grid-column: 5; \}/);
-  assert.match(skin.css, /voice\.member\.action-trigger[\s\S]*?width: 44px;/);
-  assert.match(skin.css, /\.ws-skin-root\[data-ws-skin="community\.kaak-voice"\] \[data-ws-part="voice\.context-menu"\]\s*\{[^}]*background: #303136;/);
-  assert.match(skin.css, /\[data-ws-part="voice\.context-menu"\] \.menu-volume\s*\{[^}]*border-bottom: 1px solid #48494f;/);
-  assert.match(skin.css, /\[data-ws-part="voice\.context-menu"\] > button:hover[\s\S]*?background: #414248;/);
-  assert.match(skin.css, /\[data-ws-part="voice\.context-menu"\] \.member-menu-submenu\s*\{[^}]*border-top: 1px solid #48494f;/);
-  assert.match(skin.css, /--skin-kaak-accent-hover: #7ac51a;/);
-  assert.match(skin.css, /voice-card\[data-ws-speaking="true"\] > span \{\s*color: var\(--skin-kaak-accent\);\s*\}/);
-  assert.doesNotMatch(skin.css, /#b2a8ff/i);
-  assert.match(skin.css, /performance-trigger \{[\s\S]*?color: var\(--skin-kaak-accent\);/);
-  assert.match(skin.css, /performance-trigger:hover,[\s\S]*?\{\s*color: var\(--skin-kaak-accent-hover\);/);
-  assert.match(skin.css, /performance-metrics strong \{\s*color: var\(--skin-kaak-accent\);/);
-  assert.match(skin.css, /dock-slider-heading strong \{\s*color: var\(--skin-kaak-accent\);/);
-  assert.match(skin.css, /settings-section h3 \.ui-icon \{\s*color: var\(--skin-kaak-accent\);/);
-  assert.match(skin.css, /settings-range-row strong \{\s*color: var\(--skin-kaak-accent\);/);
-  assert.doesNotMatch(skin.css, /#(?:77d68f|9af0ad|80df98|91e5a6|65be7e|79d991)/i);
-  assert.match(skin.css, /\.settings-select:hover:not\(:disabled\) \{\s*border-color: #6cbf00;/);
-  assert.match(skin.css, /\.microphone-toggle:not\(\.muted\):active,[\s\S]*?background: #60ab00;\s*border-color: #60ab00;/);
-  assert.doesNotMatch(skin.css, /#58c877/);
-  assert.match(skin.css, /\[data-ws-plugin-part="kaak-home\.home"\] \{[^}]*font-family: Arial, "Microsoft YaHei", sans-serif;/);
-  assert.match(skin.css, /\[data-ws-part="home\.identity-provider\.button"\][\s\S]*?clip-path: polygon\(0 0, 100% 0, 100% 100%\);/);
-  assert.match(skin.css, /\[data-ws-part="home\.identity-provider\.label"\][\s\S]*?color: #fff;[\s\S]*?transform: rotate\(45deg\);/);
-  assert.match(skin.css, /settings-select-menu[\s\S]*?background: #25262a/);
-  assert.match(skin.css, /settings-select-option[\s\S]*?min-height: 32px/);
-  assert.match(skin.css, /settings-header h2 \{\s*color: #f2f3f5;\s*font-size: 32px;\s*font-weight: 600;/);
-  assert.match(skin.css, /settings-section h3 \{[\s\S]*?color: #eceef0;\s*font-size: 16px;\s*font-weight: 600;/);
-  assert.match(skin.css, /settings-audio-card \{\s*width: min\(660px, 100%\);[\s\S]*?background: #25262a;[\s\S]*?border-radius: 16px;/);
-  assert.match(skin.css, /settings-form-row \{\s*display: grid;\s*grid-template-columns: minmax\(0, 268fr\) minmax\(0, 320fr\);[\s\S]*?min-height: 72px;[\s\S]*?padding: 16px 24px;/);
-  assert.match(skin.css, /noise-suppression-toggle \{\s*grid-template-columns: minmax\(0, 1fr\) 34px;[\s\S]*?padding: 16px 24px;/);
-  assert.match(skin.css, /@media \(max-width: 680px\) \{[\s\S]*?settings-form-row \{\s*grid-template-columns: minmax\(0, 1fr\);/);
-  assert.match(skin.css, /voice\.audio-settings"] \.settings-label \{\s*margin: 0;\s*font-weight: 400;/);
-  assert.match(skin.css, /voice\.audio-settings"] \.settings-select \{[\s\S]*?border-radius: 12px;/);
-  assert.match(skin.css, /settings-select:hover:not\(:disabled\) \{\s*border-color: #6cbf00;/);
-  assert.match(skin.css, /voice\.audio-settings"] \.settings-select-menu \{[\s\S]*?padding: 8px;[\s\S]*?border-radius: 12px;[\s\S]*?background: #25262a;[\s\S]*?box-shadow: 0 2px 8px rgba\(0, 0, 0, \.32\);/);
-  assert.match(skin.css, /settings-select:focus-visible \{\s*border-color: #6cbf00;\s*box-shadow: 0 0 0 3px #6cbf001a;/);
-  assert.match(skin.css, /voice\.audio-settings"] \.settings-select-option \{[\s\S]*?height: auto;[\s\S]*?min-height: 32px;[\s\S]*?padding: 6px 8px;[\s\S]*?line-height: 1\.45;[\s\S]*?overflow-wrap: anywhere;[\s\S]*?white-space: normal;[\s\S]*?border-radius: 8px;/);
-  assert.match(skin.css, /settings-select\[aria-expanded="true"\] \.settings-select-chevron::before \{\s*transform: rotate\(225deg\);/);
-  assert.match(skin.css, /settings-select-option:hover \{ background: #ffffff0f; \}/);
-  assert.match(skin.css, /voice\.audio-settings\"] \.settings-range::-webkit-slider-thumb \{\s*width: 16px;\s*height: 16px;\s*margin-top: -6px;/);
-  assert.match(skin.css, /voice\.audio-settings\"] \.settings-range::-moz-range-thumb \{\s*width: 16px;\s*height: 16px;/);
-  assert.match(skin.css, /voice\.audio-settings\"] \.settings-range::-webkit-slider-thumb \{[\s\S]*?border: 2px solid #6cbf00;[\s\S]*?background: #fff;[\s\S]*?box-shadow: none;/);
-  assert.match(skin.css, /settings-range:hover::-webkit-slider-thumb,[\s\S]*?box-shadow: 0 0 0 3px rgba\(108, 191, 0, \.5\);/);
-  assert.doesNotMatch(skin.css, /settings-range:hover::-webkit-slider-thumb,[\s\S]*?transform: scale\(1\.12\);/);
-  assert.match(skin.css, /settings-range::-moz-range-progress \{ height: 4px; border-radius: 99px; background: #6cbf00; \}/);
-  assert.match(skin.css, /voice-performance-panel-enter-active[\s\S]*?transition: opacity \.16s/);
-  assert.match(skin.css, /voice-performance-panel-leave-active/);
-  assert.match(skin.css, /voice-performance-panel-enter-from,[\s\S]*?voice-performance-panel-leave-to \{\s*opacity: 0;/);
-  assert.match(skin.css, /kaak-workspace\.voice-channel-group-toggle/);
-  assert.match(skin.css, /voice-channel-list[\s\S]*?grid-template-rows: 1fr;[\s\S]*?transition: grid-template-rows \.18s ease/);
-  assert.match(skin.css, /data-voice-group-open="false"[\s\S]*?voice-channel-list[\s\S]*?grid-template-rows: 0fr;[\s\S]*?visibility: hidden;[\s\S]*?visibility 0s linear \.18s/);
-  assert.match(skin.css, /voice-stage-heading[\s\S]*?flex: 0 0 46px;/);
-  assert.doesNotMatch(skin.css, /aria-expanded="true"\]\s*[^\n]*voice-stage-heading[^\n]*display: none;/);
-  assert.match(skin.css, /grid-template-columns: 86px 304px minmax\(280px, 1fr\) 0;/);
-  assert.match(skin.css, /grid-template-columns: 86px 304px/);
-  assert.match(skin.css, /minmax\(340px, min\(38vw, 520px\)\)/);
-  assert.match(skin.css, /grid-template-rows: minmax\(0, 1fr\)/);
-  assert.doesNotMatch(skin.css, /kaak-workspace\.topbar/);
-  assert.match(skin.css, /kaak-workspace\.server-rail"\]\s*\{[\s\S]*?--skin-kaak-rail-bg: #191a1d;[\s\S]*?--skin-kaak-rail-item-bg: #2b2d32;[\s\S]*?--skin-kaak-rail-accent: #75c900;[\s\S]*?gap: 18px;[\s\S]*?padding: 14px 0 96px;[\s\S]*?background: var\(--skin-kaak-rail-bg\);/);
-  assert.match(skin.css, /kaak-workspace\.server-add"\]\s*\{[\s\S]*?width: 58px;[\s\S]*?height: 58px;[\s\S]*?border-radius: 18px;/);
-  assert.match(skin.css, /kaak-workspace\.rail-skin"\]\s*\{[\s\S]*?width: 58px;[\s\S]*?height: 58px;[\s\S]*?flex: 0 0 58px;/);
-  assert.match(skin.css, /kaak-workspace\.rail-language"\]\s*\{[\s\S]*?order: 4;[\s\S]*?width: 58px;[\s\S]*?height: 58px;[\s\S]*?flex: 0 0 58px;/);
-  assert.match(skin.css, /rail-language"\] \.language-trigger\s*\{[^}]*width: 58px;[^}]*height: 58px;[^}]*border-radius: 18px;[^}]*background: var\(--skin-kaak-rail-item-bg\);/);
-  assert.match(skin.css, /rail-language"\] \.language-trigger > \.language-current-icon\s*\{\s*display: block;[^}]*width: 24px;[^}]*height: 24px;/);
-  assert.match(skin.css, /kaak-home\.home-language"\]\s*\{[^}]*position: fixed;[^}]*top: 18px;[^}]*right: 18px;/);
-  assert.match(skin.css, /kaak-home\.home-language"\] \.language-trigger\s*\{[^}]*width: 48px;[^}]*height: 48px;[^}]*background: #fff;/);
-  assert.match(skin.css, /kaak-home\.home-language"\] \.language-trigger > \.language-current-icon\s*\{\s*display: block;/);
-  assert.doesNotMatch(skin.css, /language-trigger::before\s*\{\s*content: "文\/A";/);
-  assert.match(skin.css, /skin-add-divider"\]\s*\{\s*order: 1;/);
-  assert.match(skin.css, /kaak-workspace\.server-add"\]\s*\{\s*order: 2;/);
-  assert.match(skin.css, /kaak-workspace\.rail-skin"\]\s*\{\s*order: 3;/);
-  assert.match(skin.css, /rail-language"\] \.language-dropdown\s*\{[^}]*position: fixed;[^}]*bottom: 161px;[^}]*left: 94px;/);
-  assert.match(skin.css, /rail-skin"\] \.skin-dropdown\s*\{[^}]*position: fixed;[^}]*bottom: 179px;[^}]*left: 94px;/);
-  assert.match(skin.css, /kaak-workspace\.quick-server-item"\]\s*\{[\s\S]*?width: 58px;[\s\S]*?height: 58px;/);
-  assert.match(skin.css, /kaak-workspace\.quick-server"\]\s*\{[\s\S]*?width: 58px;[\s\S]*?height: 58px;[\s\S]*?border: 2px solid transparent;[\s\S]*?border-radius: 18px;/);
-  assert.match(skin.css, /quick-server\"\]\:hover[\s\S]*?background: #383a40;/);
-  assert.match(skin.css, /quick-server\"\]\:not\(\[aria-current=\"true\"\]\):hover[\s\S]*?server-monogram[\s\S]*?background: #383a40;/);
-  assert.match(skin.css, /quick-server\"\]\[aria-current=\"true\"\] \{[\s\S]*?border-color: var\(--skin-kaak-rail-accent\);[\s\S]*?background: var\(--skin-kaak-rail-item-bg\);/);
-  assert.match(skin.css, /quick-server\"\]\[aria-current=\"true\"\][\s\S]*?server-monogram[\s\S]*?background: var\(--skin-kaak-rail-item-bg\);/);
-  assert.match(skin.css, /quick-server\"\]\[aria-current=\"true\"\]::before[\s\S]*?left: -16px;[\s\S]*?top: 10px;[\s\S]*?width: 4px;[\s\S]*?height: 34px;/);
-  assert.match(skin.css, /kaak-workspace\.identity-entry\"\]\s*\{[\s\S]*?width: 86px;[\s\S]*?background: #191a1d;/);
-  assert.match(skin.css, /kaak-workspace\.server-monogram[\s\S]*?width: 100%;[\s\S]*?height: 100%;[\s\S]*?border-radius: 16px;[\s\S]*?font-size: 23px;[\s\S]*?font-weight: 600;/);
-  assert.match(skin.css, /kaak-workspace\.server-icon[\s\S]*?width: 100%;[\s\S]*?height: 100%;[\s\S]*?border-radius: inherit;[\s\S]*?object-fit: cover;/);
-  assert.doesNotMatch(skin.css, /server-monogram\"\]\[data-tone=/);
-  assert.match(skin.css, /kaak-workspace\.identity-monogram\"\]\s*\{[\s\S]*?width: 54px;[\s\S]*?height: 54px;[\s\S]*?border-radius: 50%;[\s\S]*?background: #176a9e;[\s\S]*?font-size: 17px;/);
-  assert.match(skin.css, /kaak-workspace\.identity-online\"\]\s*\{[\s\S]*?right: -2px;[\s\S]*?bottom: -2px;[\s\S]*?width: 17px;[\s\S]*?height: 17px;[\s\S]*?border: 3px solid #191a1d;[\s\S]*?background: #75c900;/);
-  assert.match(skin.css, /kaak-workspace\.identity-name\"\]\s*\{\s*display: none;/);
-  assert.match(skin.css, /@media \(max-width: 820px\)[\s\S]*?grid-template-columns: 86px minmax\(0, 1fr\);[\s\S]*?grid-template-columns: 86px minmax\(0, 1fr\);/);
-  assert.match(skin.css, /@media \(max-height: 620px\)[\s\S]*?server-rail[\s\S]*?padding-bottom: 76px;/);
-  assert.match(skin.css, /voice-grid[\s\S]*?grid-template-columns: repeat\(auto-fit/);
-  assert.match(skin.css, /kaak-workspace\.desktop-room-settings"\]\s*\{[\s\S]*?display: flex;[\s\S]*?align-items: center;/, "the settings gear and label share a centered control row");
-  assert.match(skin.css, /kaak-workspace\.voice-stage-invite"\]\s*\{[\s\S]*?width: 34px;[\s\S]*?height: 34px;/, "the invite action is an icon-only header control");
-  assert.match(skin.css, /voice-card[\s\S]*?aspect-ratio: 1\.82;/);
-  assert.match(skin.css, /\.voice-card\s*\{[\s\S]*?transition: border-color \.18s ease, background-color \.18s ease, box-shadow \.18s ease;/);
-  assert.match(skin.css, /voice-card[\s\S]*?max-width: 480px;/);
-  assert.match(skin.css, /voice-avatar \{[^}]*width: 104px; height: 104px;/);
-  assert.match(skin.css, /voice-avatar-wrap::after \{[\s\S]*?content: "";[\s\S]*?border: 2px solid #6cbf0088;/);
-  assert.match(skin.css, /voice-card\[data-ws-speaking="true"\] \.voice-avatar-wrap::after \{ display: block; animation: ws-community-kaak-voice-kaak-member-speaking-ring 1\.08s/);
-  assert.match(skin.css, /voice-card\[data-ws-speaking="true"\]::after \{ display: block; animation: ws-community-kaak-voice-kaak-member-speaking-wave \.72s ease-in-out infinite alternate/);
-  assert.match(skin.css, /server-name"\]\s*\{[\s\S]*?font-size: 16px;[\s\S]*?font-weight: 700;[\s\S]*?line-height: 22px;/);
-  assert.match(skin.css, /voice-channel-group-toggle"\]\s*\{[\s\S]*?font-size: 12px;[\s\S]*?font-weight: 700;[\s\S]*?letter-spacing: normal;/);
-  assert.match(skin.css, /ws-voice-channel-name\s*\{[^}]*font-size: 14px;[^}]*font-weight: 700;[^}]*line-height: 24px;/);
-  assert.match(skin.css, /ws-voice-channel-count\s*\{[^}]*color: rgba\(230, 234, 240, \.4\);[^}]*font-size: 12px;[^}]*font-weight: 400;/);
-  assert.match(skin.css, /\.ws-voice-member-move \{ transition: transform \.28s/);
-  assert.match(skin.css, /\.ws-voice-member-enter-from,[\s\S]*?\.ws-voice-member-leave-to \{ opacity: 0; transform: translateY\(10px\) scale\(\.975\); \}/);
-  assert.match(skin.css, /data-ws-part="voice\.member\.mic-status"[\s\S]*?color: #c8c9ce;[\s\S]*?background: #111216d9;/);
-  assert.match(skin.css, /aria-expanded="true"\]\)[\s\S]*?\.voice-card > strong \{[\s\S]*?opacity: 0;[\s\S]*?visibility: hidden;[\s\S]*?transition: opacity \.14s ease, transform \.14s ease, visibility 0s linear \.14s;/);
-  assert.match(skin.css, /aria-expanded="true"\]\)[\s\S]*?\.voice-card:hover > strong \{[\s\S]*?opacity: 1;[\s\S]*?visibility: visible;[\s\S]*?transition-delay: 0s;/);
-  assert.match(skin.css, /chat-panel-toggle"\]\[aria-expanded="false"\][\s\S]*?voice-card > strong[\s\S]*?bottom: 8px;[\s\S]*?left: 8px;/);
-  assert.match(skin.css, /chat-panel-toggle"\]\[aria-expanded="false"\][\s\S]*?grid-template-columns:[^;]*0;/);
-  assert.match(skin.css, /chat-panel-toggle"\]\[aria-expanded="false"\][\s\S]*?voice-stage[\s\S]*?grid-column: 3 \/ 5;/);
-  assert.match(skin.css, /kaak-workspace\.chat-panel-expand[\s\S]*?background: var\(--skin-kaak-accent\);/);
-  assert.match(skin.css, /kaak-workspace\.chat-panel-toggle/);
-  assert.match(skin.css, /kaak-workspace\.voice-stage[\s\S]*?grid-column: 3;/);
-  assert.match(skin.css, /kaak-workspace\.voice-stage[\s\S]*?overflow: hidden;/);
-  assert.match(skin.css, /kaak-workspace\.screen-share-player"\]\s*\{[^}]*flex: 0 0 auto;[^}]*width: 100%;[^}]*max-width: 100%;/);
-  assert.match(skin.css, /kaak-workspace\.screen-share-player"\] \.screen-share-player-stage \{[^}]*height: min\(42dvh, 400px\);[^}]*min-height: 180px;/);
-  assert.match(skin.css, /kaak-workspace\.member-cards"\]\s*\{[^}]*flex: 1 1 0%;[^}]*overflow-y: auto;/);
-  assert.match(skin.css, /kaak-workspace\.conversation[\s\S]*?grid-column: 4;/);
-  assert.match(skin.css, /conversation[\s\S]*?grid-template-rows: 50px minmax\(0, 1fr\);/);
-  assert.match(skin.css, /voice\.chat\.messages[\s\S]*?max-height: none;[\s\S]*?overflow-y: auto;/);
-  assert.match(skin.css, /voice\.chat\.message-bubble[\s\S]*?background: transparent;[\s\S]*?white-space: pre-wrap;/);
-  assert.match(skin.css, /kaak-workspace\.member-cards[\s\S]*?\.voice-card[\s\S]*?aspect-ratio: 1\.82;/);
-  assert.match(skin.css, /kaak-workspace\.member-cards[\s\S]*?\.screen-share-live-indicator[\s\S]*?background: #20251e;/);
-  assert.match(skin.css, /kaak-workspace\.member-cards[\s\S]*?\.screen-share-card-button\.viewing[\s\S]*?background: #8be31e;/);
-  assert.match(skin.css, /kaak-workspace"\]\[data-ws-plugin-surface="voice"\] \[data-ws-part="voice\.screen-player\.stage"\]\s*\{[^}]*background: #000/);
-  assert.match(skin.css, /kaak-workspace"\]\[data-ws-plugin-surface="voice"\] \[data-ws-part="voice\.screen-player\.video"\]\s*\{[^}]*object-fit: contain;[^}]*background: #000/);
-  assert.match(skin.css, /@keyframes ws-community-kaak-voice-kaak-member-speaking-wave/);
-  assert.ok(skin.css.includes("animation: ws-community-kaak-voice-kaak-performance-refresh-spin .72s linear infinite;"));
-  assert.ok(skin.css.includes("performance-refresh:disabled .ui-icon { animation: none; }"));
-  assert.match(skin.css, /kaak-workspace\.performance-panel"\] \.network-performance \{\s*position: relative;\s*z-index: 8;/);
-  assert.match(skin.css, /kaak-workspace"\]\[data-ws-plugin-surface="voice"\] \.dock-hover-panel \{[\s\S]*?background: #202126;/);
-  assert.match(skin.css, /kaak-workspace\.identity-entry[\s\S]*?position: absolute;/);
-  assert.ok(skin.css.includes("@media (max-width: 820px)"));
 });
 
 test("v4 skin packages validate Wasm entry ABI and cache it as application/wasm", async () => {
