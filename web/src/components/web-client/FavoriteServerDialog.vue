@@ -169,7 +169,7 @@ function submit(): void {
   place-items: center;
   z-index: 60;
   padding: 24px;
-  background: rgba(15, 25, 23, .48);
+  background: var(--scrim);
   backdrop-filter: blur(5px);
 }
 
@@ -178,11 +178,11 @@ function submit(): void {
   max-height: min(760px, calc(100dvh - 48px));
   overflow-y: auto;
   padding: 24px;
-  color: var(--text-primary, #182321);
-  background: var(--surface-1, #fff);
-  border: 1px solid var(--border, #dce5e2);
+  color: var(--text-primary, var(--ink));
+  background: var(--surface-1, var(--raised));
+  border: 1px solid var(--border, var(--rule));
   border-radius: 18px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .22);
+  box-shadow: var(--popover-shadow);
 }
 
 .favorite-server-dialog-header {
@@ -194,7 +194,7 @@ function submit(): void {
 }
 
 .favorite-server-dialog-header > div > span {
-  color: var(--accent, #08766c);
+  color: var(--accent, var(--action));
   font-size: 11px;
   font-weight: 750;
   letter-spacing: .08em;
@@ -212,9 +212,9 @@ function submit(): void {
   place-items: center;
   width: 38px;
   height: 38px;
-  color: var(--text-muted, #687773);
-  background: var(--surface-2, #f2f6f4);
-  border: 1px solid var(--border, #dce5e2);
+  color: var(--text-muted, var(--muted));
+  background: var(--surface-2, var(--sunken));
+  border: 1px solid var(--border, var(--rule));
   border-radius: 10px;
   cursor: pointer;
 }
@@ -228,7 +228,7 @@ function submit(): void {
   display: grid;
   min-width: 0;
   gap: 7px;
-  color: var(--text-secondary, #43534e);
+  color: var(--text-primary, var(--ink));
   font-size: 12px;
   font-weight: 700;
 }
@@ -240,7 +240,7 @@ function submit(): void {
 }
 
 .favorite-server-dialog-field small {
-  color: var(--text-muted, #81908b);
+  color: var(--text-muted, var(--muted));
   font-size: 10px;
   font-weight: 500;
 }
@@ -250,18 +250,16 @@ function submit(): void {
   min-width: 0;
   height: 44px;
   padding: 0 12px;
-  color: var(--text-primary, #182321);
-  background: var(--surface-2, #f7f9f8);
-  border: 1px solid var(--border, #dce5e2);
+  color: var(--text-primary, var(--ink));
+  background: var(--surface-2, var(--sunken));
+  border: 1px solid var(--control-border);
   border-radius: 10px;
-  outline: none;
   font: inherit;
   font-size: 14px;
 }
 
 .favorite-server-dialog-field input:focus {
-  border-color: var(--accent, #08766c);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #08766c) 16%, transparent);
+  border-color: var(--focus);
 }
 
 .favorite-server-dialog-target {
@@ -272,7 +270,7 @@ function submit(): void {
 
 .favorite-server-dialog-hint {
   margin: -7px 0 0;
-  color: var(--text-muted, #75847f);
+  color: var(--text-muted, var(--muted));
   font-size: 11px;
   line-height: 1.5;
 }
@@ -299,16 +297,19 @@ function submit(): void {
 }
 
 .favorite-server-dialog-cancel {
-  color: var(--text-secondary, #43534e);
-  background: var(--surface-2, #f2f6f4);
-  border: 1px solid var(--border, #dce5e2);
+  color: var(--text-primary, var(--ink));
+  background: var(--surface-2, var(--sunken));
+  border: 1px solid var(--border, var(--rule));
 }
 
 .favorite-server-dialog-submit {
-  color: #fff;
-  background: var(--accent, #08766c);
-  border: 1px solid var(--accent, #08766c);
+  color: var(--on-action);
+  background: var(--accent, var(--action));
+  border: 1px solid var(--accent, var(--action));
 }
+
+.favorite-server-dialog-submit:hover:not(:disabled) { background: var(--action-hover); }
+.favorite-server-dialog-submit:active:not(:disabled) { background: var(--action-pressed); }
 
 .favorite-server-dialog-submit:disabled {
   cursor: wait;

@@ -206,10 +206,10 @@ function handleMemberContextMenu(member: ChannelMember, event: MouseEvent): void
   place-items: center;
   width: 24px;
   height: 24px;
-  border: 1px solid #ffffff18;
+  border: 1px solid var(--bad);
   border-radius: 5px;
-  color: #f0f0f2;
-  background: #17181bd9;
+  color: var(--bad);
+  background: var(--bad-surface);
   pointer-events: none;
 }
 

@@ -53,6 +53,7 @@ before(async () => {
   ({ useWebClientPublicConfig } = await vite.ssrLoadModule("/src/composables/useWebClientPublicConfig.ts"));
 });
 beforeEach(async () => {
+  scope = effectScope();
   installed = new Map(); writes = []; storage = new Map(); elements = new Map(); root = new Element();
   global("localStorage", { getItem: key => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, String(value)), removeItem: key => storage.delete(key) });
@@ -156,7 +157,6 @@ test("a stale directory response cannot enable skins disabled by a newer respons
 });
 
 function page(options = {}) {
-  scope = effectScope();
   return scope.run(() => usePublicSkin({ timeoutMs: 40, ...options }));
 }
 test("a skin load deadline settles a hung local read and rejects its late result", async () => {
@@ -283,8 +283,8 @@ test("first entry activates a compatible remembered skin before public config ar
   global("location", { search: "" });
   handler = async url => url === "/api/public-config" ? response.promise
     : json({ skins: [item], defaultSkinId: "builtin.light" });
-  const config = useWebClientPublicConfig({ serverHost: ref(""), serverPort: ref("9987"),
-    accelerationRelayId: ref(""), language: ref("en"), t: key => key });
+  const config = scope.run(() => useWebClientPublicConfig({ serverHost: ref(""), serverPort: ref("9987"),
+    accelerationRelayId: ref(""), language: ref("en"), t: key => key }));
   const loading = config.loadPublicConfig();
   const view = page({ timeoutMs: 1_000, appVersion: () => config.appVersion.value });
   try {

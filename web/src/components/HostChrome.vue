@@ -96,9 +96,9 @@ const RECOVERY_LAYER_CSS = `
   padding: 4px 5px 4px 9px;
   border: 1px solid var(--control-border);
   border-radius: 999px;
-  background: color-mix(in srgb, #ffffff 92%, transparent);
-  color: #31524f;
-  box-shadow: 0 6px 18px #0f2a2626;
+  background: var(--raised);
+  color: var(--ink);
+  box-shadow: var(--popover-shadow);
   pointer-events: auto;
 }
 .ws-host-recovery:popover-open { display: flex; }
@@ -108,7 +108,7 @@ const RECOVERY_LAYER_CSS = `
   align-items: center;
   min-height: 38px;
   padding: 4px 9px;
-  border: 1px solid #9db6b2;
+  border: 1px solid var(--control-border);
   border-radius: 999px;
   background: var(--raised);
   color: var(--ink);
@@ -121,8 +121,9 @@ const RECOVERY_LAYER_CSS = `
   background: var(--surface);
   color: var(--caution);
 }
-.ws-host-recovery button:hover { filter: brightness(.96); }
+.ws-host-recovery button:hover { background: var(--selected); }
 .ws-host-recovery button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (forced-colors: active) { .ws-host-recovery button:focus-visible { outline-color: Highlight; } }
 @media (prefers-reduced-motion: reduce) { .ws-host-recovery button { transition: none; } }
 `;
 
@@ -213,7 +214,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: clamp(8px, 6vh, 64px);
   right: clamp(12px, 3vw, 64px);
-  color: #8ab9cf;
+  color: var(--action);
   font: 800 clamp(40px, 7vw, 104px)/1 ui-sans-serif, system-ui, sans-serif;
   letter-spacing: -.06em;
   opacity: .14;
@@ -226,9 +227,9 @@ onBeforeUnmount(() => {
   left: 14px;
   max-width: min(46vw, 420px);
   margin: 0;
-  color: #6d8b88;
+  color: var(--muted);
   font: 11px/1.4 ui-sans-serif, system-ui, sans-serif;
-  opacity: .8;
+  opacity: 1;
   user-select: none;
 }
 .ws-host-voice-status-decoration {
@@ -247,7 +248,7 @@ onBeforeUnmount(() => {
   display: block;
   height: 6px;
   border-radius: 3px;
-  background: #95b6b1;
+  background: var(--control-border);
 }
 .ws-host-voice-status-decoration span:first-child { width: 64px; }
 .ws-host-voice-status-decoration span:last-child { flex: 1; opacity: .6; }

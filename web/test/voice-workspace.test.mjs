@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import { effectScope, ref } from "vue";
@@ -75,4 +76,21 @@ test("retired restoration cannot apply target or language preferences to a repla
   load.resolve(snapshot({hasConnected:true,lastNickname:'Retired'}));
   await pending;
   assert.deepEqual(applied, []);
+});
+
+
+test("the built-in desktop chat lays out the composer in flow and gives the timeline the remaining height", async () => {
+  const read = file => readFile(new URL(file, import.meta.url), "utf8");
+  const [appearance, historicalLayout, view] = await Promise.all([
+    read("../src/styles/public-appearance.css"),
+    read("../src/styles/web-client.css"),
+    read("../src/views/WebClient.vue"),
+  ]);
+  assert.match(view, /<VoiceMemberCards\s+v-if="!defaultDesktopWorkspace"/);
+  assert.match(view, /<ScreenSharePlayer\s+v-if="screenShareViewing"/);
+  assert.match(appearance, /\.default-desktop-workspace \.workspace-scroll\s*\{[^}]*overflow-y:\s*auto/);
+  assert.match(appearance, /\.default-desktop-workspace \.workspace-chat\s*\{[^}]*flex:\s*1 0 auto;[^}]*flex-direction:\s*column/);
+  assert.match(appearance, /\.default-desktop-workspace :deep\(\.message-list\)\s*\{[^}]*flex:\s*1 1 0;[^}]*overflow-y:\s*auto/);
+  assert.match(appearance, /\.default-desktop-workspace :deep\(\.message-composer\)\s*\{[^}]*flex:\s*0 0 auto;[^}]*align-self:\s*center/);
+  assert.doesNotMatch(historicalLayout, /\.message-composer[^{}]*\{[^}]*position:\s*(?:absolute|fixed|sticky)/);
 });

@@ -2,26 +2,29 @@ FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates python3 make g++ \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 COPY web/package.json web/package-lock.json ./web/
 RUN npm ci --ignore-scripts --no-audit --no-fund
-RUN npm rebuild @discordjs/opus --foreground-scripts --no-audit --no-fund
-RUN npm --prefix web ci
+# The pinned Opus release lacks a prebuild for Bookworm. Reuse the image's Node headers.
+RUN test -f /usr/local/include/node/node.h \
+  && npm_config_build_from_source=true npm_config_nodedir=/usr/local \
+    npm rebuild @discordjs/opus --foreground-scripts --no-audit --no-fund
+RUN npm --prefix web ci --ignore-scripts --no-audit --no-fund
 
 COPY . .
 RUN npm run web:build \
   && npm run build \
-  && npm prune --omit=dev \
+  && npm prune --omit=dev --ignore-scripts --no-audit --no-fund \
   && rm -rf web/node_modules
 
 FROM node:22-bookworm-slim AS runtime
 
 WORKDIR /app
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates libstdc++6 iputils-ping \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates libstdc++6 iputils-ping \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir -p /data \
   && chown node:node /data

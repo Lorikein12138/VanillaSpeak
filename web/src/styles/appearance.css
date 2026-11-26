@@ -2,25 +2,31 @@
 
 :root {
   color-scheme: light;
-  --canvas: #F8F5ED;
-  --surface: #FFFCF6;
-  --ink: #242823;
-  --muted: #545C54;
-  --action: #075E59;
-  --rule: #D7CFC1;
-  --raised: #FFFFFF;
-  --sunken: #EFEAE0;
-  --control-border: #81796B;
-  --on-action: #FFFFFF;
-  --action-hover: #064C49;
-  --action-pressed: #043C3A;
-  --selected: #DCEDE5;
-  --focus: #116779;
-  --good: #246445;
-  --caution: #815000;
-  --bad: #A23137;
-  --info: #205A77;
-  --popover-shadow: 0 12px 36px rgb(36 40 35 / .16);
+  --canvas: #F7F4EC;
+  --surface: #FFFBF4;
+  --ink: #292620;
+  --muted: #5F584E;
+  --action: #A3432E;
+  --rule: #D9D0C1;
+  --raised: #FFFDF8;
+  --sunken: #EEE9DF;
+  --control-border: #857765;
+  --on-action: #FFF9F2;
+  --action-hover: #8F3625;
+  --action-pressed: #78301F;
+  --selected: #F1DED3;
+  --focus: #A34B35;
+  --good: #396246;
+  --caution: #805420;
+  --bad: #9A3535;
+  --info: #3D6070;
+  --good-surface: color-mix(in srgb, var(--good) 11%, var(--raised));
+  --caution-surface: color-mix(in srgb, var(--caution) 11%, var(--raised));
+  --bad-surface: color-mix(in srgb, var(--bad) 11%, var(--raised));
+  --info-surface: color-mix(in srgb, var(--info) 11%, var(--raised));
+  --shadow-color: #241B15;
+  --scrim: color-mix(in srgb, var(--shadow-color) 55%, transparent);
+  --popover-shadow: 0 12px 36px color-mix(in srgb, var(--shadow-color) 16%, transparent);
   --body-font: "Source Sans 3", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --heading-font: "Source Serif 4", "Noto Serif CJK SC", "Songti SC", SimSun, Georgia, serif;
   --product-header-height: calc(64px + env(safe-area-inset-top));
@@ -28,25 +34,26 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --canvas: #181D1A;
-  --surface: #202723;
-  --ink: #F3EDE0;
-  --muted: #B4BCB0;
-  --action: #94D9C5;
-  --rule: #3C473F;
-  --raised: #28302B;
-  --sunken: #171C19;
-  --control-border: #848E81;
-  --on-action: #102D28;
-  --action-hover: #A9E7D5;
-  --action-pressed: #7DCAB4;
-  --selected: #2B443B;
-  --focus: #ACEEE7;
-  --good: #9CD6AC;
-  --caution: #F0C27A;
-  --bad: #FF9FA2;
-  --info: #A6D4EA;
-  --popover-shadow: 0 12px 36px rgb(0 0 0 / .36);
+  --canvas: #211F1B;
+  --surface: #2A2723;
+  --ink: #F2EBDE;
+  --muted: #C5BAAB;
+  --action: #E49B81;
+  --rule: #4D453D;
+  --raised: #332F2A;
+  --sunken: #25221E;
+  --control-border: #9C8C7C;
+  --on-action: #2B1C15;
+  --action-hover: #F0AD94;
+  --action-pressed: #D88A70;
+  --selected: #49342D;
+  --focus: #F1AD90;
+  --good: #9BBC99;
+  --caution: #E3BB78;
+  --bad: #F1A19B;
+  --info: #A0C5D4;
+  --shadow-color: #000000;
+  --popover-shadow: 0 12px 36px color-mix(in srgb, var(--shadow-color) 36%, transparent);
 }
 
 :lang(ja) {
@@ -116,6 +123,7 @@ a { color: var(--action); }
 .product-control:hover, .product-control[aria-pressed="true"] { background: var(--selected); }
 .product-primary { background: var(--action); color: var(--on-action); border-color: var(--action); }
 .product-primary:hover { background: var(--action-hover); }
+.product-primary:active { background: var(--action-pressed); }
 .product-more { position: relative; }
 .product-more summary { list-style: none; }
 .product-more summary::-webkit-details-marker { display: none; }
@@ -145,7 +153,7 @@ a { color: var(--action); }
   color: var(--ink);
   box-shadow: var(--popover-shadow);
 }
-.appearance-dialog::backdrop { background: rgb(22 26 23 / .55); }
+.appearance-dialog::backdrop { background: var(--scrim); }
 .appearance-dialog h2 { margin: 0; font: 600 26px/1.25 var(--heading-font); }
 .appearance-dialog h3 { margin: 0 0 8px; font-size: 18px; }
 .appearance-dialog-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
@@ -192,6 +200,7 @@ a { color: var(--action); }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 @media (forced-colors: active) {
+  :root, :root[data-theme="dark"] { --focus: Highlight; }
   :is(a, button, select, input, textarea, summary, [tabindex]):focus-visible { outline-color: Highlight; }
 }
 
