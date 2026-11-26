@@ -1,0 +1,41 @@
+name: 后端检查
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: 安装后端依赖
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: 编译原生 Opus 依赖
+        # Opus 0.10.0 lacks a matching prebuild for the runner's glibc.
+        run: |
+          node_root=$(node -p 'require("node:path").resolve(process.execPath, "../..")')
+          if test -f "$node_root/include/node/node.h"; then
+            export npm_config_nodedir="$node_root"
+          fi
+          npm_config_build_from_source=true npm rebuild @discordjs/opus --foreground-scripts --no-audit --no-fund
+      - name: 后端测试
+        run: npm run test:backend
+      - name: 后端构建
+        run: npm run build

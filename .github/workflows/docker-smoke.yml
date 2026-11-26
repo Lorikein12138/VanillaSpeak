@@ -1,0 +1,70 @@
+name: Docker 冒烟检查
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-smoke-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  docker-smoke:
+    name: docker-smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 构建部署镜像
+        run: docker build --tag vanillaspeak-ci .
+      - name: 创建隔离的容器
+        id: create
+        run: docker create --name vanillaspeak-ci --publish 127.0.0.1::3040 vanillaspeak-ci
+      - name: 启动容器并验证健康端点与网页
+        run: |
+          docker start vanillaspeak-ci
+          export SMOKE_ORIGIN="http://$(docker port vanillaspeak-ci 3040/tcp)"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { setTimeout as delay } from 'node:timers/promises';
+
+          const origin = new URL(process.env.SMOKE_ORIGIN);
+          const request = (path) => fetch(new URL(path, origin), {
+            redirect: 'error',
+            signal: AbortSignal.timeout(2000),
+          });
+
+          for (let attempt = 1; ; attempt++) {
+            try {
+              const response = await request('/health');
+              assert.equal(response.status, 200, 'health endpoint status');
+              assert.equal((await response.json()).status, 'ok', 'health response');
+              break;
+            } catch (error) {
+              if (attempt === 20) throw error;
+              await delay(1000);
+            }
+          }
+
+          const page = await request('/join');
+          assert.equal(page.status, 200, 'join page status');
+          assert.match(page.headers.get('content-type') ?? '', /^text\/html\b/);
+          const entry = (await page.text()).match(/<script\b[^>]*\bsrc="(\/assets\/[^"\s]+\.js)"/i)?.[1];
+          assert.ok(entry, 'join page should reference a built JavaScript entry');
+          const asset = await request(entry);
+          assert.equal(asset.status, 200, 'entry asset status');
+          assert.match(asset.headers.get('content-type') ?? '', /^(?:text|application)\/javascript\b/);
+          assert.ok((await asset.text()).trim(), 'entry asset should be nonempty');
+          NODE
+      - name: 读取失败容器日志
+        if: ${{ failure() && steps.create.outcome == 'success' }}
+        run: docker logs vanillaspeak-ci
+      - name: 清理容器与临时数据卷
+        if: ${{ always() && steps.create.outcome == 'success' }}
+        run: docker rm --force --volumes vanillaspeak-ci
