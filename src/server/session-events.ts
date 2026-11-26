@@ -1,3 +1,4 @@
+import { ClientType } from "@honeybbq/teamspeak";
 import type { ClientInfo } from "./teamspeak-sdk.js";
 import type { EventEmitter } from "node:events";
 import type { WebSpeakError } from "../errors.js";
@@ -30,6 +31,13 @@ interface SdkEvents {
   poked: { invokerID: number; invokerUID: string; invokerName: string; message: string };
   kicked: WebSpeakError;
   disconnected: Error | undefined;
+}
+
+function isHiddenDirectoryClient(client: ClientInfo | undefined, selfId: number): boolean {
+  if (!client || client.id === selfId) return false;
+  // TeamSpeak uses a reserved UID for the default ServerQuery administrator.
+  if (client.uid) return client.uid.toLowerCase() === "serveradmin";
+  return client.type === ClientType.Query && client.nickname.toLowerCase() === "serveradmin";
 }
 
 export interface SessionEventOptions {
@@ -98,8 +106,10 @@ export class SessionEventCoordinator {
       }, 300);
       if (options.isPublished()) {
         this.publishDirectory();
-        if (!wasKnown) options.sendJson({ type: "memberEnter", id: info.id, nickname: info.nickname, uid: info.uid, isSelf: info.id === this.clientId });
-        if (!wasKnown && info.id !== this.clientId) options.addEvent("joined", `${info.nickname || "未知用户"} 加入了服务器`);
+        if (!wasKnown && !isHiddenDirectoryClient(info, this.clientId)) {
+          options.sendJson({ type: "memberEnter", id: info.id, nickname: info.nickname, uid: info.uid, isSelf: info.id === this.clientId });
+          if (info.id !== this.clientId) options.addEvent("joined", `${info.nickname || "未知用户"} 加入了服务器`);
+        }
         this.avatars.schedule();
       }
     });
@@ -118,12 +128,13 @@ export class SessionEventCoordinator {
       if (info.targetChannelID === undefined || info.targetChannelID === 0n) return;
       options.onClientMove(info.id, info.targetChannelID);
       const member = state.members.get(info.id);
+      const hidden = isHiddenDirectoryClient(this.directory.getClient(info.id), this.clientId || client.getClientId());
       if (info.id === this.clientId) this.channelId = info.targetChannelID;
       this.directory.applyClientMoved(info.id, info.targetChannelID);
       this.refresh();
       if (options.isPublished()) {
         this.publishDirectory();
-        if (info.id !== this.clientId) options.addEvent("moved", `${member?.nickname || "用户"} 移动到了其他频道`);
+        if (!hidden && info.id !== this.clientId) options.addEvent("moved", `${member?.nickname || "用户"} 移动到了其他频道`);
       }
     });
     this.listenDirectory("clientUpdated", info => {
@@ -203,9 +214,10 @@ export class SessionEventCoordinator {
     const sdkChannelId = client.getChannelId();
     if (this.channelId === 0n && sdkChannelId !== 0n) this.channelId = sdkChannelId;
     const normalized = normalizeDirectorySnapshot(snapshot, selfId, this.channelId, this.options.nickname, this.options.requestedChannel);
-    state.channelTree = mapChannelTree(normalized, state.avatarCache);
+    const visibleClients = normalized.clients.filter(member => !isHiddenDirectoryClient(member, selfId));
+    state.channelTree = mapChannelTree({ ...normalized, clients: visibleClients }, state.avatarCache);
     state.members.clear();
-    for (const member of normalized.clients) {
+    for (const member of visibleClients) {
       const avatar = member.uid ? state.avatarCache.get(member.uid) : undefined;
       state.members.set(member.id, { id: member.id, nickname: member.nickname, uid: member.uid,
         ...(avatar ? { avatar } : {}), away: member.away, awayMessage: member.awayMessage,

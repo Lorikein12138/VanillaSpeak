@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { EventEmitter } from "node:events";
+import { ClientType } from "@honeybbq/teamspeak";
 import type { ClientInfo } from "./teamspeak-sdk.js";
 import type { ServerMessage } from "../shared/server-messages.js";
 import { SessionEventCoordinator, type SessionDirectoryState } from "./session-events.js";
@@ -81,6 +82,56 @@ test("live movement and departure update directory, sharing callbacks and whispe
   assert.equal(f.state.whisperTargetIds.size, 0);
   assert.equal(f.messages.filter(message => message.type === "memberLeave").length, 1);
   assert.deepEqual(f.events.map(item => item.kind), ["moved", "left"]);
+});
+
+test("directory projections hide the reserved administrator UID and keep same-name voice and query clients", t => {
+  const f = fixture(t);
+  const admin = { ...member(2), nickname: "serveradmin", uid: "ServerAdmin", type: ClientType.Query };
+  const voice = { ...member(3), nickname: "serveradmin", type: ClientType.Voice };
+  const query = { ...member(4), nickname: "serveradmin", type: ClientType.Query };
+  f.client.emit("directorySnapshot", snapshot(admin, voice, query));
+  f.coordinator.syncSelf();
+  assert.deepEqual([...f.state.members.keys()], [3, 4, 1]);
+  f.phase.published = true;
+
+  const incompleteAdmin = { ...admin, type: ClientType.Voice };
+  f.client.emit("directoryClientsSnapshot", [incompleteAdmin, { ...voice, away: true }]);
+  f.client.emit("clientUpdated", incompleteAdmin);
+  f.client.emit("directorySnapshot", { ...snapshot(incompleteAdmin, voice, query), complete: true });
+
+  for (const message of f.messages) {
+    assert.equal(message.type, "channelList");
+    if (message.type === "channelList") {
+      assert.deepEqual(message.channels.flatMap(channel => channel.members?.map(member => member.id) ?? []), [3, 4, 1]);
+    }
+  }
+});
+
+test("administrator roster events stay hidden and preserve underlying session callbacks", t => {
+  const f = fixture(t);
+  f.client.emit("directorySnapshot", snapshot(member(1)));
+  f.coordinator.syncSelf();
+  f.phase.published = true;
+  const admin = { ...member(2), nickname: "ServerAdmin", uid: "", type: ClientType.Query };
+  f.client.emit("clientEnter", admin);
+  assert.equal(f.state.members.has(admin.id), false);
+  f.client.emit("clientMoved", { id: admin.id, targetChannelID: 2n });
+  assert.equal(f.state.members.has(admin.id), false);
+  f.client.emit("clientLeave", { id: admin.id });
+  assert.equal(f.state.members.has(admin.id), false);
+  assert.equal(f.messages.some(message => message.type === "memberEnter" || message.type === "memberLeave"), false);
+  assert.equal(f.events.length, 0);
+  assert.deepEqual(f.callbacks.slice(1), [{ kind: "move", value: [2, 2n] }, { kind: "leave", value: 2 }]);
+
+  const voice = { ...member(admin.id), nickname: "serveradmin", uid: "", type: ClientType.Voice };
+  f.client.emit("clientEnter", voice);
+  f.client.emit("clientMoved", { id: voice.id, targetChannelID: 2n });
+  f.client.emit("clientLeave", { id: voice.id });
+  assert.deepEqual(f.events.map(event => event.kind), ["joined", "moved", "left"]);
+  assert.deepEqual(f.messages.filter(message => message.type === "memberEnter" || message.type === "memberLeave"), [
+    { type: "memberEnter", id: voice.id, uid: voice.uid, nickname: voice.nickname, isSelf: false },
+    { type: "memberLeave", id: voice.id },
+  ]);
 });
 
 test("channel changes preserve large identifiers and publish only actual create, rename and delete events", t => {
