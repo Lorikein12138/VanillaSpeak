@@ -156,6 +156,7 @@ let useWebClientChat;
 let useWebClientChannels;
 let webClientTranslations;
 let voice;
+let voiceScope;
 const savedGlobals = new Map();
 function replaceGlobal(name, value) {
   if (!savedGlobals.has(name)) savedGlobals.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
@@ -224,12 +225,12 @@ beforeEach(() => {
     getUserMedia: async () => microphoneStream(),
     enumerateDevices: async () => [],
   } });
-  voice = useVoiceWebSocket();
+  voiceScope = effectScope();
+  voice = voiceScope.run(() => useVoiceWebSocket());
 });
 
 afterEach(() => {
-  voice?.stopMicrophoneTest();
-  voice?.disconnect();
+  voiceScope?.stop();
   for (const timer of browserTimers) clearTimeout(timer);
   browserTimers.clear();
 });
@@ -248,6 +249,22 @@ async function connect() {
   assert.ok(socket, "join ticket should open a voice socket");
   return socket;
 }
+
+test("disposing the voice scope closes the session and removes page trace listeners", async () => {
+  const socket = await connect();
+  socket.receive({ type: "connected", tsClientId: 1 });
+  const previousLength = voice.sessionTrace.snapshot().length;
+  window.dispatchEvent(new Event("pagehide"));
+  assert.equal(voice.sessionTrace.snapshot().length, previousLength + 1);
+
+  voiceScope.stop();
+  assert.equal(socket.readyState, TestSocket.CLOSED);
+  assert.equal(voice.state.connected, false);
+  const trace = voice.sessionTrace.snapshot();
+  window.dispatchEvent(new Event("pageshow"));
+  document.dispatchEvent(new Event("visibilitychange"));
+  assert.deepEqual(voice.sessionTrace.snapshot(), trace);
+});
 
 test("accelerated voice signaling connects directly to the configured relay gateway", async () => {
   globalThis.fetch = async url => {

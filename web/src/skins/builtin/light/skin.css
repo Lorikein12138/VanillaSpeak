@@ -133,44 +133,44 @@
   box-shadow: 0 4px 12px color-mix(in srgb, var(--text-primary) 8%, transparent);
 }
 .ws-skin-root[data-ws-skin="builtin.light"] :focus-visible {
-  outline-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-color: var(--focus);
 }
 .ws-skin-root[data-ws-skin="builtin.light"],
 .ws-skin-root[data-ws-skin="builtin.light"] * {
-  scrollbar-color: #8fcfc7 transparent;
+  scrollbar-color: var(--control-border) transparent;
   scrollbar-width: thin;
 }
 .ws-skin-root[data-ws-skin="builtin.light"] *::-webkit-scrollbar-thumb {
-  background: #a7d9d2;
+  background: var(--control-border);
   background-clip: padding-box;
   border-color: transparent;
 }
 .ws-skin-root[data-ws-skin="builtin.light"] *::-webkit-scrollbar-thumb:hover {
-  background: #6bbab1;
+  background: var(--text-muted);
 }
 
 /* Keep live screen sharing obvious in the built-in light voice roster. */
 .ws-skin-root[data-ws-skin="builtin.light"] [data-ws-part="voice.screen-player.stage"] { background: #000; }
 .ws-skin-root[data-ws-skin="builtin.light"] [data-ws-part="voice.screen-player.video"] { object-fit: contain; background: #000; }
 .ws-skin-root[data-ws-skin="builtin.light"] .screen-share-live-indicator {
-  color: #075f56;
-  border-color: #a9d8d0;
-  background: #f5fffc;
-  box-shadow: 0 4px 12px rgba(21, 72, 65, .14);
+  color: var(--good);
+  border-color: var(--good);
+  background: var(--good-surface);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--good) 14%, transparent);
 }
 .ws-skin-root[data-ws-skin="builtin.light"] .screen-share-live-indicator::before {
-  background: #16a875;
-  box-shadow: 0 0 0 3px rgba(22, 168, 117, .16);
+  background: var(--good);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 16%, transparent);
 }
-.ws-skin-root[data-ws-skin="builtin.light"] .screen-share-wave { color: #087e86; }
+.ws-skin-root[data-ws-skin="builtin.light"] .screen-share-wave { color: var(--accent); }
 .ws-skin-root[data-ws-skin="builtin.light"] .screen-share-card-button {
-  color: #006a64;
-  border-color: #a9d8d0;
-  background: #eaf8f5;
+  color: var(--accent);
+  border-color: var(--border);
+  background: var(--surface-1);
 }
-.ws-skin-root[data-ws-skin="builtin.light"] .screen-share-card-button:hover { background: #d9f1ec; }
+.ws-skin-root[data-ws-skin="builtin.light"] .screen-share-card-button:hover { background: var(--selected); }
 .ws-skin-root[data-ws-skin="builtin.light"] .screen-share-card-button.viewing {
-  color: #fff;
-  border-color: #006a64;
-  background: #006a64;
+  color: var(--on-action);
+  border-color: var(--accent);
+  background: var(--accent);
 }

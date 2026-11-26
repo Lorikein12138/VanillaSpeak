@@ -318,8 +318,8 @@ function handleChannelDrop(event: DragEvent): void {
   flex: 0 0 18px;
   place-items: center;
   border-radius: 5px;
-  color: #fff;
-  background: #72c800;
+  color: var(--good);
+  background: var(--good-surface);
   line-height: 0;
 }
 </style>

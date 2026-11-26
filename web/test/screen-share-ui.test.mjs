@@ -6,7 +6,7 @@ import vue from "@vitejs/plugin-vue";
 import { createServer } from "vite";
 import { createRenderer, createSSRApp, nextTick, shallowRef, markRaw } from "vue";
 import { renderToString } from "@vue/server-renderer";
-let vite, useWebClientScreenShare, VoiceMemberCards, VoiceChannelTree, ChannelMemberPanel;
+let vite, useWebClientScreenShare, VoiceMemberCards, VoiceChannelTree, ChannelMemberPanel, WorkspaceScreenShareMenu;
 const renderer = createRenderer({ createComment: text => ({ text }), createText: text => ({ text }), createElement: () => ({}), insert() {}, remove() {}, setText() {}, setElementText() {}, patchProp() {}, parentNode: () => null, nextSibling: () => null });
 before(async () => {
   vite = await createServer({ configFile: false, plugins: [vue()], root: fileURLToPath(new URL("../", import.meta.url)), server: { middlewareMode: true, hmr: false, ws: false, watch: null }, optimizeDeps: { noDiscovery: true, include: [] }, appType: "custom" });
@@ -14,6 +14,7 @@ before(async () => {
   ({ default: VoiceMemberCards } = await vite.ssrLoadModule("/src/components/web-client/VoiceMemberCards.vue"));
   ({ default: VoiceChannelTree } = await vite.ssrLoadModule("/src/components/web-client/VoiceChannelTree.vue"));
   ({ default: ChannelMemberPanel } = await vite.ssrLoadModule("/src/components/web-client/ChannelMemberPanel.vue"));
+  ({ default: WorkspaceScreenShareMenu } = await vite.ssrLoadModule("/src/components/web-client/WorkspaceScreenShareMenu.vue"));
 });
 after(async () => { await vite?.close(); });
 
@@ -226,7 +227,8 @@ test("channel tree marks only members who own an active screen share", async () 
   assert.equal((html.match(/data-ws-part="voice\.channel-tree\.member-screen-share"/g) ?? []).length, 1);
   assert.match(html, /aria-label="screenShare"/);
   assert.match(html, /d="M4 4h16v12H4zM8 20h8M12 16v4"/);
-  assert.match(component, /background:\s*#72c800/);
+  assert.match(component, /color:\s*var\(--good\)/);
+  assert.match(component, /background:\s*var\(--good-surface\)/);
 });
 
 test("a skin can explicitly opt the member-card widget out of screen-share UI", async () => {
@@ -250,4 +252,25 @@ test("share settings submit the selected resolution and frame rate", async t => 
     assert.deepEqual(f.starts, [[true, { maxWidth: 1280, maxHeight: 720, maxFrameRate: 30 }]]);
     assert.equal(f.ui.settingsOpen.value, false); assert.equal(f.storage.get("webspeak:screen-share-framerate"), "30");
   } finally { f.app.unmount(); }
+});
+
+
+test("desktop screen sharing menu exposes start, stop, settings and the current remote stream", async () => {
+  const member = (id, nickname, isSelf = false) => ({ id, nickname, isSelf });
+  const members = [member(1, "Me", true), member(2, "Alice"), member(3, "Bob")];
+  const model = { streamForMember: member => member.id === 3 ? null : { streamId: String(member.id) } };
+  const render = (localSharing, viewingStreamId) => renderToString(createSSRApp(WorkspaceScreenShareMenu, {
+    members, model, localSharing, viewingStreamId, t: key => key,
+  }));
+
+  const available = await render(false, null);
+  assert.match(available, /startScreenShare/);
+  assert.match(available, /screenShareSettings/);
+  assert.match(available, /aria-pressed="false"[^>]*>[^]*watchScreenShare · Alice/);
+  assert.doesNotMatch(available, /watchScreenShare · (?:Me|Bob)/);
+
+  const streaming = await render(true, "2");
+  assert.match(streaming, /stopScreenShare/);
+  assert.match(streaming, /aria-pressed="true"[^>]*>[^]*watching · Alice/);
+  assert.doesNotMatch(streaming, /startScreenShare/);
 });

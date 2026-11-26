@@ -102,7 +102,7 @@ function selectChannel(id: string) { selectedChannelId.value = id; activeTab.val
 function toggleSpeaking() { speakingId.value = speakingId.value ? "" : selectedChannel.value.members[0]?.id ?? ""; }
 function messageText(message: DemoMessage): string { return language.value === "zh" ? message.zhText ?? message.text : language.value === "ru" ? message.ruText ?? message.enText ?? message.text : language.value === "ja" ? message.jaText ?? message.enText ?? message.text : message.enText ?? message.text; }
 function sendMessage() { const text = draft.value.trim(); if (!text) return; messages.value.push({ id: Date.now(), author: "demo-guest", time: "now", text, mine: true }); draft.value = ""; }
-function avatarStyle(name: string) { let hash = 0; for (const char of name) hash = char.charCodeAt(0) + ((hash << 5) - hash); const colors = ["#168f83", "#7b9ed0", "#b99070", "#8b78b9"]; return { background: colors[Math.abs(hash) % colors.length] }; }
+function avatarStyle(name: string) { let hash = 0; for (const char of name) hash = char.charCodeAt(0) + ((hash << 5) - hash); const colors = ["#E9BEAA", "#C8D9E9", "#E8C6A8", "#CCC4DD"]; return { background: colors[Math.abs(hash) % colors.length], "--avatar-ink": "#292620" }; }
 
 </script>
 

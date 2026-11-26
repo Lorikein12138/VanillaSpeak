@@ -246,7 +246,7 @@
     <!-- Connected application shell -->
     <div
       v-else-if="showVoiceShell && !skinPluginSurfaceActive && !skinRuntimePluginSurfaceActive"
-      :class="['app-shell', `mobile-view-${mobileSection}`]"
+      :class="['app-shell', `mobile-view-${mobileSection}`, { 'default-desktop-workspace': defaultDesktopWorkspace }]"
       :data-performance-open="performancePanelOpen ? 'true' : 'false'"
       :data-favorite-rail="'true'"
       data-ws-part="voice.shell"
@@ -398,6 +398,15 @@
               :t="t"
             />
             <div id="webspeak-plugin-toolbar" ref="pluginToolbarTarget" class="webspeak-plugin-toolbar-host" data-ws-part="voice.plugin-toolbar"></div>
+            <WorkspaceScreenShareMenu
+              v-if="defaultDesktopWorkspace && voiceState.connected"
+              :members="currentMembers"
+              :model="screenShareControls"
+              :local-sharing="screenShareActive || screenShareStarting"
+              :viewing-stream-id="screenShareViewingStreamId"
+              :t="t"
+              @stop-share="stopScreenShare"
+            />
             <button
               class="header-action"
               :title="t('copyInvite')"
@@ -552,15 +561,18 @@
           >
             <div class="ws-skin-mount-slot" data-ws-skin-mount="voice.activity.before"></div>
             <section
+              v-if="!defaultDesktopWorkspace || screenShareError || screenShareViewing || whisperTargetIds.size"
               :class="['voice-section', { 'mobile-section-hidden': mobileSection !== 'voice' }]"
               data-ws-part="voice.activity"
             >
               <div
+                v-if="!defaultDesktopWorkspace"
                 class="voice-activity-artwork"
                 data-ws-part="voice.activity.artwork"
                 aria-hidden="true"
               ></div>
               <div
+                v-if="!defaultDesktopWorkspace"
                 class="section-heading"
                 data-ws-part="voice.activity-heading"
                 ><div
@@ -591,6 +603,7 @@
                 :t="t"
               />
               <VoiceMemberCards
+                v-if="!defaultDesktopWorkspace"
                 :current-members="currentMembers"
                 :is-mobile-viewport="isMobileViewport"
                 :show-screen-share="true"
@@ -903,6 +916,7 @@ import SkinPluginOutlet from "../components/SkinPluginOutlet.js";
 import SkinRuntimePluginHost from "../components/SkinRuntimePluginHost.js";
 import SkinLoadRecoveryNotice from "../components/SkinLoadRecoveryNotice.vue";
 import VoiceMemberCards from "../components/web-client/VoiceMemberCards.vue";
+import WorkspaceScreenShareMenu from "../components/web-client/WorkspaceScreenShareMenu.vue";
 import VoicePerformancePanel from "../components/web-client/VoicePerformancePanel.vue";
 import VoiceChannelTree from "../components/web-client/VoiceChannelTree.vue";
 import { channelDisplayName, getChannelSpacer } from "../../../src/shared/channel-spacer.js";
@@ -1280,6 +1294,7 @@ const screenShareControls = useWebClientScreenShare({
   t,
 });
 const { settingsOpen: screenShareSettingsOpen, errorText: screenShareErrorText } = screenShareControls;
+const defaultDesktopWorkspace = computed(() => !isMobileViewport.value && OFFICIAL_SKIN_IDS.has(activeSkinId.value));
 const memberSharingState = { screenShareActive, screenShareStarting, screenShareViewingStreamId, settingsOpen: screenShareSettingsOpen };
 const {
   channelTree,
@@ -2133,7 +2148,6 @@ onUnmounted(() => {
   mobileAwayController?.dispose();
   screenWakeLockController?.dispose();
   stopViewportObservation?.();
-  disconnect();
   if (deviceChangeHandler) navigator.mediaDevices?.removeEventListener("devicechange", deviceChangeHandler);
   if (viewportMediaQuery && viewportChangeHandler) viewportMediaQuery.removeEventListener?.("change", viewportChangeHandler);
   if (toastTimer) clearTimeout(toastTimer);
@@ -2185,13 +2199,14 @@ function avatarInitial(name: string) {
   return (name.trim()[0] || "?").toUpperCase();
 }
 
-const avatarColors = ["#9edbd4", "#b9d4c5", "#e8c6a8", "#c5c7e8", "#edd2d4", "#c8d9e9", "#e4d3b8"];
+const avatarColors = ["#E9BEAA", "#C7D1B9", "#E8C6A8", "#CCC4DD", "#EDD2D4", "#C8D9E9", "#E4D3B8"];
 function avatarStyle(name: string, isSelf = false, avatar = "") {
-  const fallback = isSelf ? "linear-gradient(135deg, #006a64, #2e9f96)" : "";
+  const fallback = isSelf ? "var(--accent)" : "";
   let hash = 0;
   for (let index = 0; index < name.length; index++) hash = name.charCodeAt(index) + ((hash << 5) - hash);
   return {
     background: fallback || avatarColors[Math.abs(hash) % avatarColors.length],
+    "--avatar-ink": isSelf ? "var(--on-action)" : "#292620",
     ...(avatar ? { backgroundImage: `url("${avatar}")`, backgroundPosition: "center", backgroundSize: "cover" } : {}),
   };
 }
@@ -2217,7 +2232,7 @@ function rangeStyle(value: number, max: number) {
   const percent = Math.max(0, Math.min(100, (value / max) * 100));
   return {
     "--ws-range-progress": `${percent}%`,
-    background: `linear-gradient(to right, #006a64 0%, #006a64 ${percent}%, #e7eceb ${percent}%, #e7eceb 100%)`,
+    background: "linear-gradient(to right, var(--accent) var(--ws-range-progress), var(--control-border) var(--ws-range-progress))",
   };
 }
 

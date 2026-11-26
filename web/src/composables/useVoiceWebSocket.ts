@@ -21,7 +21,7 @@ import type { ChatMessage } from "../../../src/shared/voice-models.js";
 import type { ClientCommandPayloads, ClientCommandType } from "../../../src/shared/client-commands.js";
 export type { ScreenShareStreamDescription as ScreenShareStream, ScreenShareViewerDescription as ScreenShareViewer, ScreenSharePeerSignal as ScreenShareSignal } from "../../../src/shared/screen-share.js";
 export type { ChannelMember, ChannelInfo, ChatMessage, ServerEvent, VoiceAudioBridgeStats } from "../../../src/shared/voice-models.js";
-import { computed, onBeforeUnmount, reactive, ref, shallowRef } from "vue";
+import { computed, onScopeDispose, reactive, ref, shallowRef } from "vue";
 import { loadLocalPreferences, saveLocalPreferences } from "../services/local-persistence.js";
 
 export interface VoiceState {
@@ -1479,7 +1479,10 @@ export function useVoiceWebSocket() {
     void saveAudioPreferences();
   }
 
-  onBeforeUnmount(() => sessionTrace.dispose());
+  onScopeDispose(() => {
+    disconnect();
+    sessionTrace.dispose();
+  });
 
   return {
     pluginSession,

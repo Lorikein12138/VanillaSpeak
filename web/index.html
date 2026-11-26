@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" content="#F8F5ED" />
+    <meta name="theme-color" content="#F7F4EC" />
     <meta name="description" content="VanillaSpeak — TeamSpeak browser voice workspace" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" href="/brand/favicon-32.png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
-    <style>html{background:#F8F5ED}html[data-theme="dark"]{background:#181D1A}</style>
+    <style>html{color-scheme:light;background:#F7F4EC}html[data-theme="dark"]{color-scheme:dark;background:#211F1B}</style>
     <script>
       try {
         const choice = localStorage.getItem("webspeak:skin-choice");
         const mode = localStorage.getItem("webspeak:theme");
         if (choice === "builtin.dark" || (choice !== "builtin.light" && (mode === "dark" || (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches)))) {
           document.documentElement.dataset.theme = "dark";
-          document.querySelector('meta[name="theme-color"]').content = "#181D1A";
+          document.querySelector('meta[name="theme-color"]').content = "#211F1B";
         }
       } catch {}
     </script>

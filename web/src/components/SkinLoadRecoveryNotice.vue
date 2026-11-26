@@ -34,16 +34,16 @@ const labels = computed(() => skinLayoutLabels[resolveSkinLayoutLanguage(props.l
   width: min(720px, calc(100vw - 24px));
   padding: 10px 12px;
   transform: translateX(-50%);
-  border: 1px solid #f59e0b;
+  border: 1px solid var(--caution);
   border-radius: 12px;
-  color: #78350f;
-  background: #fffbeb;
-  box-shadow: 0 8px 28px #0f172a33;
+  color: var(--caution);
+  background: var(--caution-surface);
+  box-shadow: var(--popover-shadow);
   font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
 }
 .skin-load-recovery p { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.skin-load-recovery button { flex: 0 0 auto; min-height: 44px; max-width: 100%; padding: 7px 10px; border: 1px solid #b45309; border-radius: 8px; color: #78350f; background: #fff; cursor: pointer; white-space: normal; }
-.skin-load-recovery button:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
+.skin-load-recovery button { flex: 0 0 auto; min-height: 44px; max-width: 100%; padding: 7px 10px; border: 1px solid var(--caution); border-radius: 8px; color: var(--caution); background: var(--surface); cursor: pointer; white-space: normal; }
+.skin-load-recovery button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 @media (max-width: 520px) {
   .skin-load-recovery { align-items: stretch; flex-direction: column; gap: 7px; }

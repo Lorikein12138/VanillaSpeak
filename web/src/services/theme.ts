@@ -8,8 +8,8 @@ import darkCss from "../skins/builtin/dark/skin.css?inline";
 
 const THEME_KEY = "webspeak:theme";
 const SKIN_STYLE_ELEMENT_ID = "webspeak-active-built-in-skin";
-const LIGHT_THEME_COLOR = "#F8F5ED";
-const DARK_THEME_COLOR = "#181D1A";
+const LIGHT_THEME_COLOR = "#F7F4EC";
+const DARK_THEME_COLOR = "#211F1B";
 export const hostTheme = ref<ThemeMode>("light");
 
 const builtinSkins = {
