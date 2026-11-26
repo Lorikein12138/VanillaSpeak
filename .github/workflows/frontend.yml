@@ -1,0 +1,44 @@
+name: 前端检查
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+      - name: 安装前端与集成测试依赖
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm --prefix web ci --ignore-scripts --no-audit --no-fund
+      - name: 确认浏览器可执行
+        run: |
+          chrome=$(command -v google-chrome || command -v google-chrome-stable)
+          test -x "$chrome"
+          "$chrome" --version
+          printf 'WEBSPEAK_TEST_CHROME=%s\n' "$chrome" >> "$GITHUB_ENV"
+      - name: 前端测试
+        run: npm run test:frontend
+      - name: 前端构建
+        run: npm run web:build
