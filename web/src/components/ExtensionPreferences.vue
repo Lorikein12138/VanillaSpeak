@@ -1,11 +1,4 @@
 <template>
-  <details class="product-more" ref="menu">
-    <summary class="product-control">{{ copy.more }}</summary>
-    <div class="product-more-panel">
-      <a v-if="!native" class="product-control product-admin-mobile" href="/admin">{{ adminLabel }}</a>
-      <button ref="trigger" type="button" class="product-control" aria-haspopup="dialog" @click="open">{{ copy.preferences }}</button>
-    </div>
-  </details>
   <Teleport to="body">
     <dialog ref="dialog" class="appearance-dialog" :aria-labelledby="titleId" @close="restoreFocus">
       <div class="appearance-dialog-header">
@@ -45,8 +38,6 @@ import type { SkinOption } from "./SkinSwitcher.vue";
 
 const props = defineProps<{
   language: SiteLanguage;
-  adminLabel: string;
-  native: boolean;
   activeId: string;
   skins: SkinOption[];
   importSkin: (file: File) => Promise<string | undefined>;
@@ -55,18 +46,20 @@ const emit = defineEmits<{ select: [id: string] }>();
 const copy = computed(() => appearanceCopy(props.language));
 const titleId = useId();
 const dialog = ref<HTMLDialogElement | null>(null);
-const menu = ref<HTMLDetailsElement | null>(null);
-const trigger = ref<HTMLButtonElement | null>(null);
+let trigger: HTMLElement | null = null;
 const error = ref("");
 const importing = ref(false);
 
-function open() {
-  if (dialog.value && !dialog.value.open) dialog.value.showModal();
+function open(source: HTMLElement | null) {
+  if (!dialog.value || dialog.value.open) return;
+  trigger = source;
+  dialog.value.showModal();
 }
 function restoreFocus() {
-  if (menu.value?.open) trigger.value?.focus();
-  else menu.value?.querySelector("summary")?.focus();
+  trigger?.focus();
+  trigger = null;
 }
+defineExpose({ open });
 watch(thirdPartyAllowed, allowed => { if (!allowed) error.value = ""; });
 async function readSkin(event: Event) {
   const input = event.target as HTMLInputElement;

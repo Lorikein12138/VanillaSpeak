@@ -3076,22 +3076,6 @@
   min-width: 0;
 }
 
-:deep(.identity-options) {
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-:deep(.identity-options summary) {
-  width: fit-content;
-  color: var(--accent);
-  cursor: pointer;
-}
-
-:deep(.identity-options[open] summary) {
-  margin-bottom: 10px;
-}
-
 :deep(.cancel-connect-button) {
   justify-self: center;
   min-height: 32px;
@@ -3382,15 +3366,6 @@
   padding-inline: 13px;
 }
 
-:deep(.remember-identity) {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  margin-top: 8px;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
 :deep(.acceleration-choice) {
   display: flex;
   align-items: center;
@@ -3438,31 +3413,6 @@
   line-height: 1.45;
 }
 
-:deep(.remember-identity input) {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
-  margin: 1px 0 0;
-  accent-color: var(--accent);
-}
-
-:deep(.remember-identity strong),
-:deep(.remember-identity small) {
-  display: block;
-}
-
-:deep(.remember-identity strong) {
-  font-size: 11px;
-  font-weight: 700;
-}
-
-:deep(.remember-identity small) {
-  margin-top: 3px;
-  color: var(--text-muted);
-  font-size: 10px;
-  line-height: 1.4;
-}
-
 :deep(.identity-warning) {
   margin: 8px 0 0;
   color: var(--caution);
@@ -3470,25 +3420,6 @@
   line-height: 1.45;
 }
 
-:deep(.identity-controls) {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-:deep(.identity-controls .remember-identity) {
-  min-width: 0;
-  flex: 1;
-}
-
-:deep(.identity-actions) {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 7px;
-}
-
-:deep(.identity-action-button),
 :deep(.identity-file-button) {
   min-height: 31px;
   padding: 0 10px;
@@ -3502,14 +3433,8 @@
   cursor: pointer;
 }
 
-:deep(.identity-action-button:hover),
 :deep(.identity-file-button:hover) {
   background: color-mix(in srgb, var(--accent) 16%, var(--surface-1));
-}
-
-:deep(.identity-action-button:disabled) {
-  cursor: not-allowed;
-  opacity: .48;
 }
 
 :deep(.identity-import-backdrop) {
@@ -7768,20 +7693,6 @@
 }
 
 @media (max-width: 420px) {
-  :deep(.identity-controls) {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-  }
-  :deep(.identity-actions) {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-  :deep(.identity-action-button) {
-    flex: 1 1 120px;
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
   :deep(.join-form > *) {
     min-width: 0;
   }

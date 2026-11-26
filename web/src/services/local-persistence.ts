@@ -231,17 +231,21 @@ export async function loadStoredIdentity(): Promise<StoredIdentity | null> {
 
 export async function saveStoredIdentity(privateMaterial: string, label = "此设备"): Promise<boolean> {
   try {
-    const existing = await loadStoredIdentity();
     await request("identities", "readwrite", (store, resolve, reject) => {
-      const put = store.put({
-        id: CURRENT_IDENTITY_KEY,
-        label,
-        privateMaterial,
-        createdAt: existing?.createdAt ?? Date.now(),
-        lastUsedAt: Date.now(),
-      } satisfies StoredIdentity);
-      put.onsuccess = () => resolve(undefined);
-      put.onerror = () => reject(put.error);
+      const get = store.get(CURRENT_IDENTITY_KEY);
+      get.onerror = () => reject(get.error);
+      get.onsuccess = () => {
+        const existing = get.result as StoredIdentity | undefined;
+        const put = store.put({
+          id: CURRENT_IDENTITY_KEY,
+          label,
+          privateMaterial,
+          createdAt: existing?.createdAt ?? Date.now(),
+          lastUsedAt: Date.now(),
+        } satisfies StoredIdentity);
+        put.onsuccess = () => resolve(undefined);
+        put.onerror = () => reject(put.error);
+      };
     });
     return true;
   } catch {
@@ -385,20 +389,20 @@ export async function listRecentServers(): Promise<RecentServer[]> {
   }
 }
 
-export async function recordRecentServer(server: RecentServer): Promise<void> {
+export async function recordRecentServer(server: RecentServer, signal?: AbortSignal): Promise<void> {
   try {
     await request("recent", "readwrite", (store, resolve, reject) => {
       const put = store.put(server);
       put.onsuccess = () => resolve(undefined);
       put.onerror = () => reject(put.error);
-    });
+    }, signal);
     const all = await request<RecentServer[]>("recent", "readonly", (store, resolve, reject) => {
       const get = store.getAll();
       get.onsuccess = () => resolve(get.result as RecentServer[]);
       get.onerror = () => reject(get.error);
-    });
+    }, signal);
     all.sort((a, b) => b.lastConnectedAt - a.lastConnectedAt);
-    for (const old of all.slice(10)) await removeRecentServer(old.id);
+    for (const old of all.slice(10)) await removeRecentServer(old.id, signal);
   } catch {
     // Recent servers are an optional convenience.
   }
@@ -464,12 +468,12 @@ export async function saveChatHistoryMessage(serverKey: string, message: ChatMes
   }
 }
 
-async function removeRecentServer(id: string): Promise<void> {
+async function removeRecentServer(id: string, signal?: AbortSignal): Promise<void> {
   await request("recent", "readwrite", (store, resolve, reject) => {
     const remove = store.delete(id);
     remove.onsuccess = () => resolve(undefined);
     remove.onerror = () => reject(remove.error);
-  });
+  }, signal);
 }
 
 export async function clearLocalData(): Promise<void> {
