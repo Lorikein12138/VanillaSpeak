@@ -3,6 +3,7 @@
     <button
       type="button"
       class="skin-trigger"
+      :class="{ 'icon-only': iconOnly }"
       data-ws-part="skin.trigger"
       :disabled="options.length === 0"
       :aria-label="menuLabel"
@@ -13,28 +14,39 @@
       :aria-controls="menuId"
       @click.stop="toggle"
     >
-      <Icon :name="selectedOption.icon || 'compass'" :size="15" data-ws-icon-slot="skin.trigger" />
-      <span>{{ menuLabel }}</span>
-      <Icon name="chevron-down" :size="12" />
+      <Icon :name="selectedOption.icon || 'compass'" :size="iconOnly ? 19 : 15" data-ws-icon-slot="skin.trigger" />
+      <template v-if="!iconOnly">
+        <span>{{ menuLabel }}</span>
+        <Icon name="chevron-down" :size="12" />
+      </template>
     </button>
 
-    <div v-if="open" :id="menuId" class="skin-dropdown" data-ws-part="skin.menu" role="listbox" :aria-label="menuLabel" @click.stop>
+    <div v-if="open" class="skin-dropdown" data-ws-part="skin.menu" @click.stop>
+      <div :id="menuId" class="skin-options" role="listbox" :aria-label="menuLabel">
+        <button
+          v-for="option in options"
+          :key="option.value"
+          type="button"
+          class="skin-option"
+          data-ws-part="skin.option"
+          :data-ws-skin-id="option.value"
+          :class="{ selected: modelValue === option.value }"
+          role="option"
+          :aria-selected="modelValue === option.value"
+          @click="select(option.value)"
+        >
+          <Icon :name="option.icon || 'compass'" :size="16" />
+          <span>{{ option.label }}</span>
+          <Icon v-if="modelValue === option.value" name="check" :size="14" />
+        </button>
+      </div>
       <button
-        v-for="option in options"
-        :key="option.value"
+        v-if="preferencesLabel"
         type="button"
-        class="skin-option"
-        data-ws-part="skin.option"
-        :data-ws-skin-id="option.value"
-        :class="{ selected: modelValue === option.value }"
-        role="option"
-        :aria-selected="modelValue === option.value"
-        @click="select(option.value)"
-      >
-        <Icon :name="option.icon || 'compass'" :size="16" />
-        <span>{{ option.label }}</span>
-        <Icon v-if="modelValue === option.value" name="check" :size="14" />
-      </button>
+        class="skin-option skin-preferences"
+        aria-haspopup="dialog"
+        @click="openPreferences"
+      ><Icon name="settings" :size="16" /><span>{{ preferencesLabel }}</span></button>
     </div>
   </div>
 </template>
@@ -52,12 +64,15 @@ export interface SkinOption {
 const props = defineProps<{
   modelValue: string;
   menuLabel: string;
+  preferencesLabel?: string;
+  iconOnly?: boolean;
   options: SkinOption[];
 }>();
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
   change: [value: string];
+  preferences: [trigger: HTMLElement | null];
 }>();
 
 const options = computed(() => props.options.filter(({ value }) => value === "builtin.light" || value === "builtin.dark"));
@@ -81,6 +96,11 @@ function dismiss() {
   if (!open.value) return;
   close();
   root.value?.querySelector<HTMLButtonElement>(".skin-trigger")?.focus();
+}
+function openPreferences() {
+  const trigger = root.value?.querySelector<HTMLButtonElement>(".skin-trigger") ?? null;
+  close();
+  emit("preferences", trigger);
 }
 
 async function move(direction: number) {
@@ -116,6 +136,19 @@ onUnmounted(() => document.removeEventListener("pointerdown", onDocumentPointerD
 .skin-trigger:hover, .skin-option:hover, .skin-option[aria-selected="true"] {
   background: var(--selected); color: var(--action);
 }
+.skin-trigger.icon-only {
+  box-sizing: border-box;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+}
+.skin-trigger.icon-only:hover, .skin-trigger.icon-only[aria-expanded="true"] {
+  color: var(--action);
+  background: var(--selected);
+}
 .skin-dropdown {
   position: absolute; top: calc(100% + 7px); right: 0; display: grid; gap: 4px;
   min-width: 156px; max-width: calc(100vw - 32px); padding: 6px;
@@ -126,6 +159,8 @@ onUnmounted(() => document.removeEventListener("pointerdown", onDocumentPointerD
   display: flex; justify-content: flex-start; width: 100%; color: var(--ink);
   border-color: transparent; background: transparent; text-align: start;
 }
+.skin-options { display: grid; gap: 4px; }
+.skin-preferences { border-top-color: var(--rule); }
 .skin-option span { flex: 1; }
 @media (max-width: 899px) {
   .skin-trigger, .skin-option { min-height: 44px; }

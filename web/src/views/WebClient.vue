@@ -1,18 +1,17 @@
 <template>
   <WebClientHeader
+    v-if="!showVoiceShell"
+    :inert="clearingLocalData"
     v-model:language="language"
     :skin-id="headerSkinId"
-    :mobile="mobileMode"
-    :connected="showVoiceShell"
-    :protected-tools="Boolean(activeSkin)"
     :skin-options="skinOptions"
     :t="translate"
     @skin-change="onSkinChange"
     @language-change="persistLanguage"
-  >
-    <ExtensionPreferences :language="language" :native="mobileMode" :admin-label="translate('adminConsole')"
-      :active-id="activeSkinId" :skins="extensionSkinOptions" :import-skin="publicSkin.importLocal" @select="onSkinChange" />
-  </WebClientHeader>
+    @preferences="openExtensionPreferences"
+  />
+  <ExtensionPreferences ref="extensionPreferences" :language="language"
+    :active-id="activeSkinId" :skins="extensionSkinOptions" :import-skin="publicSkin.importLocal" @select="onSkinChange" />
   <div
     :class="[
       'web-client',
@@ -83,6 +82,7 @@
       <main
         class="join-content"
         data-ws-part="home.content"
+        :inert="clearingLocalData"
       >
         <div class="ws-skin-mount-slot" data-ws-skin-mount="home.content.before"></div>
         <div
@@ -92,19 +92,22 @@
           <div
             class="eyebrow"
             data-ws-part="home.hero.eyebrow"
-            ><span class="eyebrow-dot"></span> {{ skinHomeCopy.eyebrow || t("privateAudio") }}</div
+            ><span v-if="activeSkin" class="eyebrow-dot"></span>{{ skinHomeCopy.eyebrow || t(clubLobby ? "clubLounge" : "privateAudio") }}</div
           >
           <h1 data-ws-part="home.hero.title"
-            >{{ skinHomeCopy.title || t("joinLine1") }}<br /><em>{{
-              skinHomeCopy.titleAccent || t("joinLine2")
+            >{{ skinHomeCopy.title || t(clubLobby ? "clubLine1" : "joinLine1") }}<br /><em>{{
+              skinHomeCopy.titleAccent || t(clubLobby ? "clubLine2" : "joinLine2")
             }}</em></h1
           >
-          <p v-if="siteName !== PRODUCT_NAME && siteName !== 'WebSpeak'" class="instance-name">{{ siteName }}</p>
+          <p v-if="accessMode === 'open' && siteName !== PRODUCT_NAME && siteName !== 'WebSpeak'" class="instance-name">{{ siteName }}</p>
           <p
             class="join-description"
             data-ws-part="home.hero.description"
-            >{{ skinHomeCopy.description || localizedWelcomeText }}</p
+            >{{ skinHomeCopy.description || homeWelcomeText }}</p
           >
+          <div v-if="!activeSkin" class="join-voice-wave" aria-hidden="true">
+            <i v-for="bar in 13" :key="bar"></i>
+          </div>
           <div
             class="promise-list"
             data-ws-part="home.features"
@@ -115,7 +118,7 @@
               class="promise-item"
               data-ws-part="home.feature"
               :data-ws-feature-id="feature.id"
-              ><span :class="['promise-icon', feature.tone]"
+              ><span v-if="activeSkin" :class="['promise-icon', feature.tone]"
                 ><Icon
                   :name="feature.icon"
                   :size="16" /></span
@@ -137,13 +140,18 @@
           data-ws-part="home.join-card"
         >
           <h2 data-ws-part="home.join-title">{{
-            skinHomeCopy.welcomeTitle || appearanceCopy(language).connectTitle
+            skinHomeCopy.welcomeTitle || t("joinVoice")
           }}</h2>
           <p
+            v-if="activeSkin"
             class="card-lead"
             data-ws-part="home.join-description"
             >{{ skinHomeCopy.welcomeDescription || t("joinLead") }}</p
           >
+          <div v-if="initialized && accessMode === 'fixed'" class="join-server">
+            <span class="join-server-icon"><Icon name="headset" :size="20" /></span>
+            <strong>{{ fixedServerName }}</strong>
+          </div>
 
           <div
             v-if="voiceState.error"
@@ -230,14 +238,17 @@
         data-ws-part="home.footer"
       >
         <div class="ws-skin-mount-slot" data-ws-skin-mount="home.footer.before"></div>
-        <span data-ws-part="home.footer.decoration">{{ PRODUCT_NAME }} v{{ appVersion }}</span>
+        <span data-ws-part="home.footer.decoration">© 2022 - 2026 VanillaClub</span>
         <span class="footer-spacer"></span
         ><button
           type="button"
           class="clear-local-button"
           data-ws-part="home.footer.clear"
+          :title="t('clearLocalData')"
+          :aria-label="t('clearLocalData')"
+          :disabled="clearingLocalData"
           @click="clearBrowserData"
-          >{{ t("clearLocalData") }}</button
+          ><Icon name="trash" :size="20" /></button
         >
       </footer>
 
@@ -408,8 +419,10 @@
               @stop-share="stopScreenShare"
             />
             <button
+              type="button"
               class="header-action"
               :title="t('copyInvite')"
+              :aria-label="t('copyInvite')"
               @click="doShare"
               ><Icon
                 name="share"
@@ -451,23 +464,28 @@
               :model-value="headerSkinId"
               class="workspace-skin-switcher"
               :menu-label="t('skinSelector')"
+              :preferences-label="appearanceCopy(language).preferences"
               :options="skinOptions"
+              icon-only
               @change="onSkinChange"
+              @preferences="openExtensionPreferences"
             />
-            <LanguageSwitcher skin-icon
+            <LanguageSwitcher skin-icon icon-only
               v-model="language"
               class="workspace-language"
               :menu-label="t('languageMenu')"
               @change="persistLanguage"
             />
             <button
+              type="button"
               class="disconnect-button"
               :aria-label="t('exit')"
+              :title="t('exit')"
               @click="leaveVoiceWorkspace"
             ><Icon
                 name="door"
                 :size="17"
-              /><span>{{ t("exit") }}</span></button
+              /></button
             >
           </div>
           <div class="ws-skin-mount-slot" data-ws-skin-mount="voice.header.after"></div>
@@ -738,8 +756,10 @@
           :model-value="headerSkinId"
           class="mobile-skin-switcher"
           :menu-label="t('skinSelector')"
+          :preferences-label="appearanceCopy(language).preferences"
           :options="skinOptions"
           @change="onSkinChange"
+          @preferences="openExtensionPreferences"
         />
         <div class="language-menu-row"
           ><Icon
@@ -814,7 +834,8 @@
     </div>
 
     <PluginPanel :session-token="pluginSession" :gateway-url="pluginVoiceSocket?.url ?? ''" :connected="voiceState.connected" :language="language" :toolbar-target="skinPluginToolbar?.element ?? pluginToolbarTarget" :presentation="skinPluginToolbar?.presentation ?? (OFFICIAL_SKIN_IDS.has(activeSkinId) ? 'drawer-below' : 'dialog')" />
-    <HostChrome :language="language" :connected="voiceState.connected" :plugin-library-available="voiceState.connected && Boolean(pluginSession)" />
+    <HostChrome :language="language" :connected="voiceState.connected" :plugin-library-available="voiceState.connected && Boolean(pluginSession)"
+      :preferences-available="showVoiceShell && Boolean(activeSkin)" @preferences="openExtensionPreferences" />
     <IdentityImportDialog
       v-if="identityImportOpen"
       v-model="identityImportText"
@@ -1066,7 +1087,8 @@ const { panelOpen: performancePanelOpen } = performance;
 
 const query = new URLSearchParams(location.search);
 const initialChannel = query.get("channel") ?? "";
-const inviteToken = ref(query.get("invite") ?? "");
+const initialInviteToken = query.get("invite") ?? "";
+const inviteToken = ref(initialInviteToken);
 const initialTarget = initialServerTarget();
 const nickname = ref(localStorage.getItem("webspeak:nickname") ?? "");
 const channel = ref(initialChannel);
@@ -1076,6 +1098,7 @@ const serverPassword = ref("");
 const rememberIdentity = ref(localStorage.getItem("webspeak:remember-identity") !== "0");
 const accelerationRelayId = ref("");
 const browserError = ref("");
+const clearingLocalData = ref(false);
 const memberQuery = ref("");
 const channelTreeSearchQuery = ref("");
 const selectedChannelId = ref("");
@@ -1150,7 +1173,6 @@ const {
 const {
   accessMode,
   initialized,
-  mobileMode,
   siteName,
   visitorNumber,
   visitorTotal,
@@ -1160,8 +1182,20 @@ const {
   serverConfigLoading,
   serverConfigUnavailable,
   localizedWelcomeText,
+  customWelcomeText,
   loadPublicConfig,
+  restoreServerTarget,
 } = useWebClientPublicConfig({ serverHost, serverPort, accelerationRelayId, language, t });
+const fixedServerName = computed(() => {
+  if (siteName.value === PRODUCT_NAME || siteName.value === "WebSpeak") return "VanillaClub";
+  return safeSkinServerDisplayName(siteName.value, currentServerTarget()) || "TeamSpeak";
+});
+const clubLobby = computed(() => accessMode.value === "fixed" && fixedServerName.value === "VanillaClub");
+const homeWelcomeText = computed(() => clubLobby.value ? customWelcomeText.value || t("clubDescription") : localizedWelcomeText.value);
+const extensionPreferences = ref<InstanceType<typeof ExtensionPreferences> | null>(null);
+function openExtensionPreferences(trigger: HTMLElement | null) {
+  extensionPreferences.value?.open(trigger);
+}
 const publicSkin = usePublicSkin({ activeSkin, appVersion: () => appVersion.value });
 const { activeSkinId, skinReady, skinLoadError, installedSkins, catalogSkins,
   select: onSkinChange, initialize: initializeSkin, switchToBuiltIn, switchToBuiltInAfterLoadError } = publicSkin;
@@ -1180,6 +1214,10 @@ const extensionSkinOptions = computed<SkinOption[]>(() => [
 ]);
 const skinHomeCopy = computed<SkinHomeCopy>(() => resolveSkinHomeCopy(activeSkin.value, language.value));
 const skinHomeFeatures = computed(() => {
+  if (!activeSkin.value) return [
+    { id: "quality", title: t("joinFromBrowser"), description: t("noClientInstall"), icon: "", tone: "" },
+    { id: "secure", title: t("useExistingIdentity"), description: t("importIdentityBeforeJoining"), icon: "", tone: "" },
+  ];
   const defaults = [
     { id: "quality", title: t("highQuality"), description: t("opusAudio"), icon: "waveform", tone: "" },
     { id: "secure", title: t("secureJoin"), description: t("inviteProtected"), icon: "shield", tone: "mint" },
@@ -1369,7 +1407,7 @@ const {
   cancelChannelPassword,
   selectChannelById,
 } = useWebClientConnection({
-  initialized,
+  initialized: computed(() => initialized.value && !clearingLocalData.value),
   accessMode,
   isConnecting: computed(() => voiceState.connecting),
   isConnected: computed(() => voiceState.connected),
@@ -1540,7 +1578,7 @@ async function submitFavoriteServerDraft(draft: FavoriteServerDraft): Promise<vo
   favoriteDialogBusy.value = true;
   try {
     const target = currentServerTarget();
-    await saveFavoriteServer(target, draft.label || target, nickname.value, channel.value);
+    if (!await saveFavoriteServer(target, draft.label || target, nickname.value, channel.value)) return;
     favoriteServerDialogOpen.value = false;
     beginFavoriteConnection();
   } finally {
@@ -2043,7 +2081,11 @@ watch(() => pokeNotifications.length, (length, previousLength) => {
   playNotification("poke");
   if (typeof Notification !== "undefined" && Notification.permission === "granted") new Notification(t("poke"), { body: `${latest.invokerName}: ${latest.message || t("pokedYou")}` });
 });
+watch(language, (locale) => {
+  document.documentElement.lang = locale === "zh" ? "zh-CN" : locale;
+}, { immediate: true });
 watch(rememberIdentity, (remember) => {
+  if (clearingLocalData.value) return;
   localStorage.setItem("webspeak:remember-identity", remember ? "1" : "0");
   if (!remember) {
     identityMaterial.value = "";
@@ -2051,6 +2093,7 @@ watch(rememberIdentity, (remember) => {
   }
 });
 watch([rememberIdentity, identityMaterial], ([remember, material]) => {
+  if (clearingLocalData.value) return;
   if (remember && material) void saveStoredIdentity(material);
   if (!remember && material) identityMaterial.value = "";
 });
@@ -2171,17 +2214,34 @@ function doShare() {
 }
 
 async function clearBrowserData(): Promise<void> {
-  if (!window.confirm(t("clearLocalDataConfirm"))) return;
-  resetIdentityOperations();
-  publicSkin.cancel();
-  voiceWorkspace.reset();
-  await clearStoredLocalData();
-  for (const key of ["webspeak:nickname", "webspeak:language", "webspeak:theme", "webspeak:active-skin", "webspeak:skin-choice", "webspeak:input-device", "webspeak:output-device", "webspeak:remember-identity"]) localStorage.removeItem(key);
-  await publicSkin.reset();
-  identityMaterial.value = "";
-  rememberIdentity.value = false;
-  clearServerHistory();
-  showToast(t("localDataCleared"));
+  if (clearingLocalData.value || !window.confirm(t("clearLocalDataConfirm"))) return;
+  clearingLocalData.value = true;
+  try {
+    doDisconnect(false);
+    cancelServerPassword();
+    cancelChannelPassword();
+    resetIdentityOperations();
+    voiceWorkspace.reset();
+    publicSkin.cancel();
+    clearServerHistory();
+
+    nickname.value = "";
+    channel.value = initialChannel;
+    inviteToken.value = initialInviteToken;
+    restoreServerTarget();
+    serverPassword.value = "";
+    accelerationRelayId.value = "";
+    identityMaterial.value = "";
+    rememberIdentity.value = false;
+    for (const key of ["webspeak:nickname", "webspeak:language", "webspeak:theme", "webspeak:active-skin", "webspeak:skin-choice", "webspeak:input-device", "webspeak:output-device", "webspeak:remember-identity"]) localStorage.removeItem(key);
+    language.value = getInitialLanguage();
+
+    await clearStoredLocalData();
+    await publicSkin.reset();
+    showToast(t("localDataCleared"));
+  } finally {
+    clearingLocalData.value = false;
+  }
 }
 
 function dismissPoke(id: string): void {
