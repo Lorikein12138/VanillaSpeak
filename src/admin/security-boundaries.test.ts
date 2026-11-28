@@ -12,6 +12,7 @@ import { createAdminRouter } from "./admin-router.js";
 import { WebSpeakDatabase } from "../persistence/database.js";
 import { createWebServer } from "../server/server.js";
 import { JoinTicketStore } from "../server/join-ticket.js";
+import { adminResponses } from "../shared/admin-responses.js";
 import type { Logger } from "../logger.js";
 
 const logger: Logger = { debug() {}, info() {}, warn() {}, error() {}, child() { return this; } };
@@ -145,8 +146,72 @@ async function adminFixture(t: TestContext) {
     return { cookie: response.headers.get("set-cookie")!.split(";", 1)[0]!, csrf: body.csrfToken };
   };
   const authenticated = async (cookie: string) => (await (await fetch(origin + "/api/admin/session", { headers: { cookie } })).json() as { authenticated: boolean }).authenticated;
-  return { service, database, post, login, authenticated };
+  return { service, database, origin, post, login, authenticated };
 }
+
+test("update compatibility reports only local status and denies both actions after authorization", { timeout: 15_000 }, async t => {
+  const previousMode = process.env.WEBSPEAK_DEPLOYMENT_MODE;
+  process.env.WEBSPEAK_DEPLOYMENT_MODE = "release-package";
+  t.after(() => {
+    if (previousMode === undefined) delete process.env.WEBSPEAK_DEPLOYMENT_MODE;
+    else process.env.WEBSPEAK_DEPLOYMENT_MODE = previousMode;
+  });
+  const f = await adminFixture(t);
+  const request = fetch;
+  const status = (cookie?: string) => request(f.origin + "/api/admin/update", { headers: cookie ? { cookie } : {} });
+  const candidate = { version: "0.3.4", confirmVersion: "0.3.4" };
+  const paths = ["/update/check", "/update/apply"];
+  const post = (route: string, cookie?: string, csrf?: string, origin = f.origin) =>
+    request(f.origin + "/api/admin" + route, {
+      method: "POST",
+      headers: { cookie: cookie ?? "", "x-csrf-token": csrf ?? "", origin, "content-type": "application/json" },
+      body: JSON.stringify(candidate),
+    });
+  async function checkError(result: Promise<Response>, code: string, statusCode: number) {
+    const response = await result;
+    assert.equal(response.status, statusCode);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await response.json(), { ok: false, code });
+  }
+
+  await checkError(status(), "AUTH_REQUIRED", 401);
+  const firstLogin = await f.login("admin");
+  await checkError(status(firstLogin.cookie), "PASSWORD_CHANGE_REQUIRED", 403);
+  await checkError(post("/update/apply", firstLogin.cookie, firstLogin.csrf), "PASSWORD_CHANGE_REQUIRED", 403);
+  const changed = await f.post("/change-password", { newPassword: "update-fixture-password" }, firstLogin.cookie, firstLogin.csrf);
+  assert.equal(changed.status, 200);
+  const { cookie, csrf } = await f.login("update-fixture-password");
+  const audit = f.database.recentAudit(50);
+
+  const remoteRequests = t.mock.method(globalThis, "fetch", () => { throw new Error("Unexpected updater request"); });
+  const response = await status(cookie);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const update = adminResponses.updateStatus(await response.json());
+  const diagnostics = await request(f.origin + "/api/admin/diagnostics", { headers: { cookie } });
+  assert.equal(update.currentVersion, adminResponses.diagnostics(await diagnostics.json()).gateway.version);
+  assert.equal(update.deployment.platform, process.platform);
+  assert.equal(update.deployment.architecture, process.arch);
+  assert.equal(update.deployment.applyAllowed, false);
+  assert.equal(update.deployment.reasonCode, "UPDATE_UNAVAILABLE");
+  assert.equal(update.task, null);
+
+  process.env.WEBSPEAK_DEPLOYMENT_MODE = "docker";
+  const container = adminResponses.updateStatus(await (await status(cookie)).json());
+  assert.equal(container.deployment.mode, "docker");
+  assert.equal(container.deployment.upgradePath, "docker-compose");
+  assert.equal(container.deployment.applyAllowed, false);
+  process.env.WEBSPEAK_DEPLOYMENT_MODE = "release-package";
+
+  for (const route of paths) {
+    await checkError(post(route), "AUTH_REQUIRED", 401);
+    await checkError(post(route, cookie, csrf, "https://example.invalid"), "ORIGIN_REJECTED", 403);
+    await checkError(post(route, cookie), "CSRF_REJECTED", 403);
+    await checkError(post(route, cookie, csrf), "UPDATE_UNAVAILABLE", 503);
+  }
+  assert.equal(remoteRequests.mock.callCount(), 0);
+  assert.deepEqual(f.database.recentAudit(50), audit);
+});
 
 test("password rotation revokes other default-password sessions and a login finishing after rotation", { timeout: 15_000 }, async t => {
   const f = await adminFixture(t);

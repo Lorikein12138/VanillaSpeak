@@ -25,7 +25,7 @@ Set-Location web\android
 .\gradlew.bat assembleDebug
 ```
 
-Gradle writes one APK per supported CPU architecture under `web/android/app/build/outputs/apk/debug/`: `arm64-v8a`, `armeabi-v7a`, and `x86_64`. Use `arm64-v8a` for most modern Android phones and `x86_64` for the Android emulator. The [upstream WebSpeak v0.3.2 release](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) contains its three debug APKs with versioned filenames.
+Gradle writes one APK per supported CPU architecture under `web/android/app/build/outputs/apk/debug/`: `arm64-v8a`, `armeabi-v7a`, and `x86_64`. Use `arm64-v8a` for most modern Android phones and `x86_64` for the Android emulator. VanillaSpeak’s Android build defaults to versionName `0.3.3` and versionCode `303`. For comparison, the [upstream WebSpeak v0.3.3 release](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.3) lists WebSpeak's debug APKs.
 
 On Linux, enter `web/android` and run `sh ./gradlew assembleDebug`.
 

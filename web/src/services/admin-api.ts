@@ -127,6 +127,7 @@ export function createAdminApi(options: AdminApiOptions) {
     invites: (signal?: AbortSignal) => request("/invites", adminResponses.invites, "GET", undefined, true, signal),
     createInvite: (body: ManagedInviteInput, signal?: AbortSignal) => request("/invites", adminResponses.createdInvite, "POST", body, true, signal),
     revokeInvite: (id: string, signal?: AbortSignal) => request(`/invites/${encodeURIComponent(id)}/revoke`, adminResponses.ok, "POST", {}, true, signal),
+    updateStatus: (signal?: AbortSignal) => request("/update", adminResponses.updateStatus, "GET", undefined, true, signal),
     diagnostics: (signal?: AbortSignal) => request("/diagnostics", adminResponses.diagnostics, "GET", undefined, true, signal),
     logs: (signal?: AbortSignal) => request("/logs?limit=100", adminResponses.logs, "GET", undefined, true, signal),
     audit: (signal?: AbortSignal) => request("/audit?limit=50", adminResponses.audit, "GET", undefined, true, signal),

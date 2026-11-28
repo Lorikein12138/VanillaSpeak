@@ -14,7 +14,7 @@
 
 WebSpeak はセルフホスト型の TeamSpeak 3 / TeamSpeak 6 ブラウザークライアント兼音声ゲートウェイです。ユーザーはブラウザーで音声、チャット、画面共有に参加でき、運営者は管理コンソールで接続先、アクセス方針、データを管理できます。
 
-安定版：[v0.3.2 更新内容](#latest-release-notes) · [上流 WebSpeak v0.3.2 の配布パッケージ](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) · スキンの復元、アプリライブラリの配置、プラグイン設定フォーム。
+VanillaSpeak は [上流の WebSpeak v0.3.3](#latest-release-notes) をベースに、復元コントロールのスロット、重なり回避、保護されたスタイルを取り込んでいます。
 
 
 
@@ -40,9 +40,9 @@ WebSpeak はセルフホスト型の TeamSpeak 3 / TeamSpeak 6 ブラウザー�
 | 画面と音声の共有 | ブラウザー間および対応する TeamSpeak 6 クライアントとの画面共有。品質、ビットレート、統計を設定でき、デスクトップではウィンドウやタブの音声も共有可能。 |
 | ID と接続 | ID 保持、TS3 ID インポート・エクスポート、お気に入りと履歴、SRV・Nickname 名前解決、IPv4/IPv6、招待リンク。 |
 | インスタンス管理 | 固定・公開接続先、アクセス方針、招待、セッション、ログ、診断、バックアップ、任意の TeamSpeak 管理接続。 |
-| スキンと画面 | 昼・夜・KAAK、GitHub 経由の `.wskin` 配布、5 言語、レスポンシブ表示。 |
+| スキンと画面 | 昼・夜の内蔵スキンと、拡張機能の設定から有効にするサードパーティースキン。5 言語とレスポンシブ表示に対応。 |
 | 分散音声 | ブラウザーが選択した中継の音声ゲートウェイに直接接続し、ページの URL は入口インスタンスのまま維持。 |
-| デプロイ方法 | Docker amd64/arm64、Windows x64・Linux x64/ARM64 サーバーパッケージ、Android プレビュー APK。 |
+| デプロイ方法 | VanillaSpeak のソースコードから実行、または Docker Compose でビルド。Android アプリもソースからビルド可能。 |
 
 ### TeamSpeak のバージョン互換性
 
@@ -110,9 +110,9 @@ git pull --ff-only
 docker compose up -d --build
 ```
 
-### Release パッケージ
+### 上流リリースの参考情報
 
-[上流 WebSpeak v0.3.2 の配布パッケージ](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) から `windows-x64.zip`、`linux-x64.tar.gz`、`linux-arm64.tar.gz` のいずれかを取得し、同梱ランチャーを実行します。Docker は amd64/arm64 に対応します。`arm64-v8a`、`armeabi-v7a`、`x86_64` の Android APK もあります。APK は手動インストールとテスト向けのデバッグ署名で、Google Play 用ではありません。実機 TeamSpeak 音声は未検証です。
+[WebSpeak v0.3.3 のリリース](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.3) では、上流プロジェクトのサーバーパッケージと Android テスト用 APK を確認できます。VanillaSpeak はこのページの Compose またはソースからの手順でデプロイ・更新します。管理コンソールには稼働中のバージョンとデプロイ方式が表示されます。[Android のビルド手順](../mobile/README.md)も参照してください。
 
 ### ソースから
 
@@ -277,6 +277,20 @@ relay.example.com {
 以下の更新履歴は上流 WebSpeak のリリースを対象としています。
 
 <a id="latest-release-notes"></a>
+
+### [v0.3.3](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.3) · 2026-11-26
+
+**主な変更：管理コンソールから安定版の確認とワンクリック更新が可能になりました。**
+
+- 公式 GitHub Releases を確認し、管理者がバージョンを選んでインストールを承認します。パッケージは SHA-256 検証が必須です。自動インストールの対象は、フォアグラウンドで実行する公式 Linux x64 パッケージです。Windows、Linux arm64、Docker、ソース実行、systemd・PM2・Supervisor 管理の環境では、バージョン確認とリリースノートの閲覧ができ、インストールは手動です。
+- 置き換えるのはプログラムファイルのみです。`data/`、`config.json`、`certs/`、インストール済みのスキンとプラグインは保持します。プロセスの再起動により、音声セッションと管理画面が一時的に切断されます。SHA256SUMS.txt は整合性のチェックサムであり、デジタル署名ではありません。
+- ヘルスチェック、ロールバック、中断後の起動復元を強化しました。復元処理は更新処理とロックを共有し、重複起動による実行中の更新の巻き戻しを防ぎます。サイズ超過、書き込み失敗、キャンセル時にはリクエストと並列ダウンロードを中止し、読み取りストリームを解放します。
+- 宣言したスロットと保護されたスタイル変数で、スキン内の復元入口とホスト操作部を調整できます。利用できない配置や色は標準に戻ります。浮動ボタンの重なり回避、通知の下にある要素の判定、スキンの遅延読み込みとアニメーションの互換性を改善し、復元ショートカットを維持しました。
+- #60、#61、#62 と追加修正を収録し、スキン開発ガイドとサンプルを更新しました。OddTurtleHead の貢献に感謝します。
+
+**更新方法：** v0.3.2 以前は、最初に v0.3.3 へ手動で更新してください。その後、対応する環境ではコンソールから今後の安定版をインストールできます。事前にデータをバックアップしてください。Docker はデータボリュームを保持して `docker compose pull && docker compose up -d` を実行します。サービス管理下では、停止してからプログラムファイルを置き換え、再起動してください。
+
+検証：1102 件の自動テスト、フロントエンド・バックエンドのビルド、Docker 起動ヘルスチェックを通過。
 
 ### [v0.3.2](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) · 2026-11-14
 

@@ -94,7 +94,23 @@ const tsAdminOverview = object({
 const savedTsAdminSettings = object({ ok: choice(true), settings: tsAdminSettings });
 const sessionStatus = object({ authenticated: boolean, mustChangePassword: optional(boolean), csrfToken: optional(text) });
 
+const updateStatus = object({
+  currentVersion: nonempty,
+  deployment: object({
+    mode: choice("docker", "source"),
+    platform: nonempty,
+    architecture: nonempty,
+    applyAllowed: choice(false),
+    reasonCode: choice("UPDATE_UNAVAILABLE"),
+    upgradePath: choice("docker-compose", "source"),
+  }),
+  task: value => value === null ? null : invalid(),
+});
+
+export type AdminUpdateStatus = ReturnType<typeof updateStatus>;
+
 export const adminResponses = {
+  updateStatus,
   session(value: unknown) {
     const result = sessionStatus(value);
     if (result.authenticated && (!result.csrfToken || result.mustChangePassword === undefined)) invalid();

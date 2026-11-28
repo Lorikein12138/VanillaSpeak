@@ -14,7 +14,7 @@ This page preserves the upstream WebSpeak release notes. See the [VanillaSpeak R
 
 WebSpeak is a self-hosted browser client and voice gateway for TeamSpeak 3 and TeamSpeak 6. Visitors join voice, chat and screen sharing in a browser; operators manage target servers, access policy and data through the administration console.
 
-Stable release: [v0.3.2 notes](#latest-release-notes) · [Upstream WebSpeak v0.3.2 packages](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) · Skin recovery, app library layouts, and plugin settings forms.
+VanillaSpeak is based on [upstream WebSpeak v0.3.3](#latest-release-notes), with skin recovery slots, floating collision avoidance, and protected control tokens.
 
 
 
@@ -40,9 +40,9 @@ Try the welcome page and voice workspace. Network conditions, load and availabil
 | Screen & audio sharing | Screen sharing between browsers and supported native TeamSpeak 6 clients, with quality, bitrate and statistics controls; desktop window or tab audio sharing. |
 | Identity & connections | Remembered identities, TS3 identity import/export, favorites and history, SRV and Nickname resolution, IPv4/IPv6 and invitation links. |
 | Instance administration | Fixed or open targets, access policy, invitations, sessions, logs, diagnostics, backups and optional TeamSpeak management connections. |
-| Skins & interface | Day, Night and KAAK, plus GitHub distribution of `.wskin` packages, five interface languages and responsive layouts. |
+| Skins & interface | Built-in Day and Night themes, optional third-party skins through extension preferences, five interface languages and responsive layouts. |
 | Distributed voice | Browsers connect directly to the selected relay voice gateway while the page stays on the ingress instance URL. |
-| Deployment | Docker amd64/arm64, Windows x64 and Linux x64/ARM64 server packages, plus Android preview APKs. |
+| Deployment | Run VanillaSpeak from source or build it with Docker Compose. The Android app can be built from source. |
 
 ### TeamSpeak version compatibility
 
@@ -103,20 +103,18 @@ docker compose ps
 docker compose logs -f webspeak
 ```
 
-Upgrade:
+Upgrade from the host. The administration console can check for newer stable releases on Docker, but it cannot replace the container image from inside the container:
 
 ```bash
 git pull --ff-only
 docker compose up -d --build
 ```
 
-Do not run `docker compose down -v`; it removes the database and administrator settings.
+Do not run `docker compose down -v`; it removes the `webspeak-data` volume, including the database and administrator settings.
 
-### Release package
+### Upstream release reference
 
-Download the matching `windows-x64.zip`, `linux-x64.tar.gz`, or `linux-arm64.tar.gz` from [Upstream WebSpeak v0.3.2 packages](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2). Extract it and run the included launcher. Packages include the Node.js runtime and production dependencies. Docker images support amd64/arm64.
-
-Android APKs for `arm64-v8a`, `armeabi-v7a`, and `x86_64` are also attached. They use debug signing for sideload testing; they are not Google Play packages, and real-device voice still needs validation.
+The [WebSpeak v0.3.3 release](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.3) lists upstream server packages and Android test APKs. Deploy and update VanillaSpeak using the Compose or source steps on this page. Its admin console displays the running version and deployment method. See the [Android build guide](../mobile/README.md) for building the app from source.
 
 ### From source
 
@@ -132,6 +130,8 @@ npm start
 ```
 
 Building `@discordjs/opus` requires Python, Make, and a C/C++ toolchain.
+
+The administration console can check for newer stable versions when running from source, but one-click apply is unavailable because the tree has no bundled Node.js runtime. Pull the source and rebuild after reviewing the release notes. The console never downloads or swaps source-tree files.
 
 ### First-time setup
 
@@ -242,21 +242,6 @@ $env:WEBSPEAK_RELAY_PORT = "39087"
 node .\dist\index.js
 ```
 
-#### Run from a release package
-
-Download and extract the appropriate package from [Upstream WebSpeak v0.3.2 packages](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2):
-
-```bash
-# Linux
-export WEBSPEAK_MODE=relay
-export WEBSPEAK_RELAY_TOKEN='replace-with-a-long-random-token'
-export WEBSPEAK_RELAY_HOST='0.0.0.0'
-export WEBSPEAK_RELAY_PORT='39087'
-./runtime/node ./dist/index.js
-```
-
-On Windows PowerShell, set the same variables and run `.\runtime\node.exe .\dist\index.js`.
-
 #### Run with Docker
 
 ```bash
@@ -342,6 +327,20 @@ Functional plugins are independent applications using standard browser capabilit
 The release notes below describe the original WebSpeak releases.
 
 <a id="latest-release-notes"></a>
+
+### [v0.3.3](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.3) · 2026-11-26
+
+**Highlight: stable-release checks and one-click updates in the administration console.**
+
+- Administrators can check official GitHub Releases, select a version and confirm installation. Packages must pass SHA-256 verification. Installation initially supports official Linux x64 packages running in the foreground. Windows, Linux arm64, Docker, source installs and instances managed by systemd, PM2 or Supervisor retain version checks and release-note links; installation follows their manual deployment procedure.
+- Updates replace application files while preserving `data/`, `config.json`, `certs/`, installed skins and plugins. Installation restarts the process and briefly disconnects voice sessions and the console. SHA256SUMS.txt is an integrity checksum, not a digital signature.
+- Hardened health checks, rollback and startup recovery after interrupted updates. Recovery shares the update lock, preventing a duplicate launch from rolling back a live update. Size-limit errors, disk-write failures and cancellation abort requests, release response readers and clean up sibling downloads.
+- Skins can place recovery controls in declared slots and style host controls through protected tokens, with default placement and colours when unusable. Improved floating-control avoidance, hit-testing through toasts, late skin loading and animation compatibility; recovery shortcuts remain available.
+- Includes #60, #61, #62 and follow-up maintenance fixes, plus updated skin development documentation and examples. Thanks to OddTurtleHead.
+
+**Upgrading:** manually upgrade v0.3.2 or earlier to v0.3.3 first. Supported installs can then use the console for future stable releases. Back up data before upgrading. Docker uses `docker compose pull && docker compose up -d` with the data volume preserved. Stop managed services before replacing application files, then start them again.
+
+Validation: 1,102 automated tests, frontend/backend builds and the Docker startup health check passed.
 
 ### [v0.3.2](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) · 2026-11-14
 

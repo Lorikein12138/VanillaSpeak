@@ -44,6 +44,7 @@ const tsOverview = () => ({ configurationRevision: "reviewed-configuration", ser
 const defaults = path => ({
   "/session": { authenticated: true, mustChangePassword: false, csrfToken: "test-csrf" },
   "/server": settings(), "/overview": overview, "/sessions": { sessions: [] }, "/invites": { invites: [] },
+  "/update": { currentVersion: "0.3.3", deployment: { mode: "source", platform: "win32", architecture: "x64", applyAllowed: false, reasonCode: "UPDATE_UNAVAILABLE", upgradePath: "source" }, task: null },
   "/diagnostics": { gateway: { version: "test", node: "test", platform: "test", arch: "test" }, database: { schemaVersion: 1 }, sessions: { created: 0 } },
   "/logs?limit=100": { available: false, entries: [], sessions: [] }, "/audit?limit=50": { events: [] },
   "/skins": { skins: [], defaultSkinId: "builtin.light" },
@@ -364,6 +365,36 @@ test("a current 401 resets the page without leaving an error or loading spinner"
   assert.equal(operationsModel.operationsLoading, false);
   assert.equal(state.errorMessage, "");
   assert.equal(router.currentRoute.value.path, "/admin/login");
+});
+
+test("maintenance reads local update status independently and discards an obsolete request", async () => {
+  await mount("/admin/operations?section=maintenance");
+  await nextTurn();
+  assert.equal(operationsModel.updateStatus.currentVersion, "0.3.3");
+  assert.equal(operationsModel.updateStatus.deployment.applyAllowed, false);
+
+  const late = deferred();
+  const methods = [];
+  handler = (path, init) => {
+    if (path !== "/update") return Promise.resolve(json(defaults(path)));
+    methods.push(init.method);
+    return late.promise;
+  };
+  await operationsModel.loadOperations();
+  assert.equal(operationsModel.operations.diagnostics.node, "test");
+  assert.equal(operationsModel.operationsLoading, false);
+
+  handler = (path, init) => {
+    if (path !== "/update") return Promise.resolve(json(defaults(path)));
+    methods.push(init.method);
+    return Promise.resolve(json({ ...defaults(path), currentVersion: "invalid", task: {} }));
+  };
+  await operationsModel.loadOperations(); await nextTurn();
+  assert.equal(operationsModel.updateStatus, null);
+  late.resolve(json(defaults("/update"))); await nextTurn();
+  assert.equal(operationsModel.updateStatus, null);
+  assert.equal(operationsModel.operations.diagnostics.version, "test");
+  assert.deepEqual(methods, ["GET", "GET"]);
 });
 
 test("unmounting during a backup download cannot trigger a late file download", async () => {
@@ -700,6 +731,8 @@ test("settings and operations render explicit localized sections with valid deep
   const { adminOrganizationCopy } = await vite.ssrLoadModule("/src/i18n/admin-organization.ts");
   await mount("/admin/server?section=site");
   assert.equal(state.initialSection, "site");
+  await state.adminOperations.loadOperations();
+  await nextTurn();
   for (const language of ["zh", "en", "de", "ru", "ja"]) {
     state.language = language;
     const translations = adminOrganizationCopy[language];
@@ -711,6 +744,10 @@ test("settings and operations render explicit localized sections with valid deep
     const operationsHtml = await renderToString(createSSRApp(Operations, { model: state.adminOperations, i18n: state.i18n, initialSection: "maintenance" }));
     assert.ok(operationsHtml.includes(translations.adminBrowserSessionsLead));
     assert.ok(operationsHtml.includes('data-admin-section="maintenance"'));
+    assert.ok(operationsHtml.includes(translations.adminUpdateUnavailable));
+    assert.ok(operationsHtml.includes(translations.adminDeploymentSource));
+    assert.ok(operationsHtml.includes("0.3.3"));
+    assert.doesNotMatch(operationsHtml, /\/update\/(check|apply)/);
     assert.ok(!operationsHtml.includes("undefined"));
   }
 });

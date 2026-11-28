@@ -46,18 +46,19 @@ const emit = defineEmits<{ select: [id: string] }>();
 const copy = computed(() => appearanceCopy(props.language));
 const titleId = useId();
 const dialog = ref<HTMLDialogElement | null>(null);
-let trigger: HTMLElement | null = null;
+let returnFocus: (() => void) | null = null;
 const error = ref("");
 const importing = ref(false);
 
-function open(source: HTMLElement | null) {
+function open(source: HTMLElement | null | (() => void)) {
   if (!dialog.value || dialog.value.open) return;
-  trigger = source;
+  returnFocus = typeof source === "function" ? source : () => source?.focus();
   dialog.value.showModal();
 }
 function restoreFocus() {
-  trigger?.focus();
-  trigger = null;
+  const focus = returnFocus;
+  returnFocus = null;
+  focus?.();
 }
 defineExpose({ open });
 watch(thirdPartyAllowed, allowed => { if (!allowed) error.value = ""; });

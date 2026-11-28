@@ -33,6 +33,7 @@ const eventLabels: Record<string, AdminTranslationKey> = {
   TS_ADMIN_ACTION_SUCCEEDED: "tsAdminActionSuccessEvent", TS_ADMIN_ACTION_FAILED: "tsAdminActionFailureEvent", TS_ADMIN_ACTION_PARTIAL: "tsAdminActionPartialEvent",
 };
 const errorLabels: Record<string, AdminTranslationKey> = {
+  UPDATE_UNAVAILABLE: "adminUpdateUnavailable",
   INVALID_PASSWORD: "invalidPassword", INVALID_ADMIN_PASSWORD: "setupPasswordShort", PASSWORD_CHANGE_REQUIRED: "changePasswordLead", RATE_LIMITED: "rateLimited",
   INVALID_WEBRTC_PUBLIC_HOST: "invalidWebRtcNetworkError", INVALID_WEBRTC_STUN_SERVER: "invalidWebRtcNetworkError", INVALID_WEBRTC_IPV6: "invalidWebRtcNetworkError",
   INVALID_WEBRTC_PORT_RANGE: "invalidWebRtcPortRangeError", WEBRTC_PORT_LOCKED: "webRtcPortLockedError",

@@ -2,8 +2,7 @@
  * Pure visibility decisions used by the host chrome recovery entry.
  *
  * The actual DOM reads live in `host-chrome.ts`; keeping the predicates here
- * makes them testable without a browser and keeps the preview page and the Vue
- * client on the same rules.
+ * makes them testable without a browser.
  */
 
 export interface HostPartRect {
@@ -73,7 +72,7 @@ export interface RecoveryVisibilityInput {
 /**
  * The recovery entry is a small, persistent host-owned affordance while a
  * third-party skin is active, so a hostile skin can never remove the only way
- * back. Official/built-in skins (Day, Night, KAAK) never grow it
+ * back. Built-in Day and Night skins never grow it
  * automatically: for them it remains a fallback that only appears when the
  * normal launcher is declared or observed unavailable while connected.
  */

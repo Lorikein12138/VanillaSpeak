@@ -1,6 +1,7 @@
 <template>
   <div ref="root" class="skin-switcher" :class="{ open }" @keydown.esc.stop="dismiss" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
     <button
+      ref="trigger"
       type="button"
       class="skin-trigger"
       :class="{ 'icon-only': iconOnly }"
@@ -82,6 +83,7 @@ const selectedOption = computed(() => options.value.find((option) => option.valu
   icon: "compass",
 });
 const root = ref<HTMLElement | null>(null);
+const trigger = ref<HTMLButtonElement | null>(null);
 const open = ref(false);
 const menuId = `skin-menu-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -95,13 +97,17 @@ function select(value: string) {
 function dismiss() {
   if (!open.value) return;
   close();
-  root.value?.querySelector<HTMLButtonElement>(".skin-trigger")?.focus();
+  focusTrigger();
 }
 function openPreferences() {
-  const trigger = root.value?.querySelector<HTMLButtonElement>(".skin-trigger") ?? null;
   close();
-  emit("preferences", trigger);
+  emit("preferences", trigger.value);
 }
+
+function focusTrigger(): void {
+  trigger.value?.focus();
+}
+defineExpose({ focusTrigger });
 
 async function move(direction: number) {
   if (!open.value) {

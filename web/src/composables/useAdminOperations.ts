@@ -1,5 +1,5 @@
 import { onScopeDispose, reactive, ref, type Ref } from "vue";
-import type { AdminSession, ManagedInvite, AdminLog, AdminConnectionRecord } from "../../../src/shared/admin-responses.js";
+import type { AdminUpdateStatus, AdminSession, ManagedInvite, AdminLog, AdminConnectionRecord } from "../../../src/shared/admin-responses.js";
 import type { copy } from "../i18n/admin.js";
 import { isAdminRequestCancelled, type AdminApi } from "../services/admin-api.js";
 import { createAdminRequests } from "../services/admin-requests.js";
@@ -17,6 +17,7 @@ export function useAdminOperations(options: Options) {
   const operationsLoading = ref(false), terminatingSession = ref(""), inviteSubmitting = ref(false);
   const revokingInvites = reactive(new Set<string>());
   const inviteForm = reactive({ channel: "", expiresInHours: 24, maxUses: 0 });
+  const updateStatus = ref<AdminUpdateStatus | null>(null);
   const createdInvite = ref<{ token: string; link: string } | null>(null);
   const operations = reactive({ sessions: [] as AdminSession[], invites: [] as ManagedInvite[],
     diagnostics: { version: "", node: "", platform: "", arch: "", schemaVersion: 0, createdSessions: 0 },
@@ -32,6 +33,7 @@ export function useAdminOperations(options: Options) {
   function reset() {
     cancelRequests();
     createdInvite.value = null;
+    updateStatus.value = null;
     operations.sessions = []; operations.invites = []; operations.audit = [];
     operations.logs = { available: false, entries: [], sessions: [] };
     operations.diagnostics = { version: "", node: "", platform: "", arch: "", schemaVersion: 0, createdSessions: 0 };
@@ -41,7 +43,20 @@ export function useAdminOperations(options: Options) {
   function report(error: unknown) {
     if (!isAdminRequestCancelled(error)) options.errorMessage.value = options.errorText((error as { code?: string }).code);
   }
+  async function loadUpdateStatus() {
+    const request = requests.begin("update-status");
+    try {
+      const status = await options.api.updateStatus(request.signal);
+      if (request.isCurrent()) updateStatus.value = status;
+    } catch {
+      // Keep the diagnostics version usable if the status endpoint is unavailable.
+      if (request.isCurrent()) updateStatus.value = null;
+    } finally {
+      request.finish();
+    }
+  }
   async function loadOperations() {
+    void loadUpdateStatus();
     const request = requests.begin("load");
     operationsLoading.value = true;
     try {
@@ -117,6 +132,6 @@ export function useAdminOperations(options: Options) {
     } catch (error) { if (request.isCurrent()) report(error); }
     finally { request.finish(); }
   }
-  return { operations, operationsLoading, terminatingSession, inviteSubmitting, revokingInvites, inviteForm, createdInvite,
+  return { operations, operationsLoading, updateStatus, terminatingSession, inviteSubmitting, revokingInvites, inviteForm, createdInvite,
     loadOperations, terminateSession, createInvite, revokeInvite, copyInviteLink, downloadBackup, cancelRequests, reset };
 }
