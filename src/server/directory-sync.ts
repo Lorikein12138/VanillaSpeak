@@ -60,6 +60,10 @@ export class DirectorySynchronizer {
     this.applyOrQueue({ type: "clientListSnapshot", clients });
   }
 
+  getClient(id: number): DirectoryClientInfo | undefined {
+    return this.clients.get(id);
+  }
+
   getSnapshot(): TSDirectorySnapshot | null {
     if (!this.snapshot) return null;
     return {
