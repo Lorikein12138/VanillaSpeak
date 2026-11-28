@@ -20,7 +20,10 @@ const raw = "https://raw.githubusercontent.com/example/skin";
 const manifest = { schemaVersion: 1, id: "community.store-test", name: "Store fixture", version: "1.0.0", author: "Fixture", license: "MIT", minAppVersion: "0.2.8", entry: "skin.css" };
 function fixture() {
   let version = "1.0.0";
-  const archive = () => Buffer.from(zipSync({ "manifest.json": strToU8(JSON.stringify({ ...manifest, version })), "skin.css": strToU8('[data-ws-part="voice.member"] { color: teal; }') }));
+  const archive = () => Buffer.from(zipSync({
+    "manifest.json": strToU8(JSON.stringify({ ...manifest, version })),
+    "skin.css": strToU8('[data-ws-part="voice.member"] { color: teal; }'),
+  }, { mtime: new Date(2000, 0, 1) }));
   const metadata = () => ({ ...manifest, version, description: "Fixture description", package: { ref: `v${version}`, path: "skin.wskin", sha256: createHash("sha256").update(archive()).digest("hex") } });
   const index = { schemaVersion: 1, skins: [{ id: manifest.id, repository }] };
   const overrides = new Map<string, () => Response>();

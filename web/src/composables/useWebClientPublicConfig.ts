@@ -1,4 +1,5 @@
 import { PRODUCT_NAME } from "../../../src/shared/product.js";
+import { DEFAULT_WELCOME_TEXTS } from "../../../src/site-copy.js";
 import { computed, onScopeDispose, reactive, ref, type Ref } from "vue";
 import { DEFAULT_TEAM_SPEAK_PORT, splitTeamSpeakTarget } from "../services/teamspeak-target.js";
 import { APP_VERSION } from "../services/app-version.js";
@@ -38,11 +39,23 @@ export function useWebClientPublicConfig({
   const openTargetPrefillBlocked = ref(false);
   const serverConfigLoading = ref(true);
   const serverConfigUnavailable = ref(false);
+  const initialTarget = { address: serverHost.value, port: serverPort.value };
+  let defaultTarget = initialTarget;
   let pending: AbortController | undefined;
   onScopeDispose(() => pending?.abort());
   const welcomeTexts = reactive<Record<Language, string>>({ zh: "", en: "", de: "", ru: "", ja: "" });
   const accelerationAvailable = computed(() => accelerationRelays.value.length > 0);
   const localizedWelcomeText = computed(() => welcomeTexts[language.value] || t("joinDescription"));
+  // The public API returns pre-resolved defaults as well as administrator copy.
+  const customWelcomeText = computed(() => {
+    const configured = welcomeTexts[language.value];
+    return configured === DEFAULT_WELCOME_TEXTS[language.value] ? "" : configured;
+  });
+
+  function restoreServerTarget() {
+    serverHost.value = defaultTarget.address;
+    serverPort.value = defaultTarget.port;
+  }
 
   async function loadPublicConfig(): Promise<void> {
     pending?.abort();
@@ -105,14 +118,13 @@ export function useWebClientPublicConfig({
       if (!accelerationAvailable.value || !accelerationRelays.value.some((relay) => relay.id === accelerationRelayId.value)) accelerationRelayId.value = "";
       const hasInviteTarget = query.has("server") || query.has("target") || query.has("tsHost") || query.has("tsPort");
       openTargetPrefillBlocked.value = !hasInviteTarget && accessMode.value === "open" && config.targetPrefillBlocked === true;
-      if (openTargetPrefillBlocked.value) {
-        serverHost.value = "";
-        serverPort.value = DEFAULT_TEAM_SPEAK_PORT;
-      } else if (!hasInviteTarget && typeof config.target === "string" && config.target.trim()) {
-        const target = splitTeamSpeakTarget(config.target);
-        serverHost.value = target.address;
-        serverPort.value = target.port;
-      }
+      const configuredTarget = !hasInviteTarget && typeof config.target === "string" && config.target.trim()
+        ? splitTeamSpeakTarget(config.target)
+        : undefined;
+      defaultTarget = openTargetPrefillBlocked.value
+        ? { address: "", port: DEFAULT_TEAM_SPEAK_PORT }
+        : configuredTarget ?? initialTarget;
+      if (openTargetPrefillBlocked.value || configuredTarget) restoreServerTarget();
     } catch {
       if (pending === operation && !operation.signal.aborted) {
         initialized.value = false;
@@ -137,6 +149,8 @@ export function useWebClientPublicConfig({
     serverConfigLoading,
     serverConfigUnavailable,
     localizedWelcomeText,
+    customWelcomeText,
     loadPublicConfig,
+    restoreServerTarget,
   };
 }

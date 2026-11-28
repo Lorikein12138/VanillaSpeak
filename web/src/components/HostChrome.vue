@@ -52,6 +52,9 @@
         :title="copy.library"
         @click="openLibrary"
       >{{ copy.library }}</button>
+      <button v-if="preferencesAvailable" type="button" aria-haspopup="dialog" @click="emit('preferences', $event.currentTarget as HTMLElement)">
+        {{ appearanceCopy(language).preferences }}
+      </button>
       <button v-if="thirdPartyAllowed" type="button" data-ws-recovery-action="disable" @click="setInstanceAuthorization(false)">{{ appearanceCopy(language).disable }}</button>
     </div>
   </Teleport>
@@ -78,7 +81,8 @@ import { shouldShowRecovery } from "../services/host-chrome-visibility.js";
 import { appearanceCopy } from "../i18n/appearance.js";
 import { setInstanceAuthorization, thirdPartyAllowed } from "../services/instance-authorization.js";
 
-const props = withDefaults(defineProps<{ language: SiteLanguage; connected?: boolean; pluginLibraryAvailable?: boolean }>(), { connected: false });
+const props = withDefaults(defineProps<{ language: SiteLanguage; connected?: boolean; pluginLibraryAvailable?: boolean; preferencesAvailable?: boolean }>(), { connected: false });
+const emit = defineEmits<{ preferences: [trigger: HTMLElement] }>();
 const copy = computed(() => hostChromeCopy[props.language] ?? hostChromeCopy.en);
 
 // Styles live inside the closed shadow root: the component's scoped stylesheet

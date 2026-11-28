@@ -1,4 +1,4 @@
-import { computed, ref, type Ref } from "vue";
+import { computed, onScopeDispose, ref, type Ref } from "vue";
 import {
   listFavorites,
   listRecentServers,
@@ -39,9 +39,13 @@ export function useWebClientServerHistory({
   const quickServers = computed(() => mergeQuickServers(favoriteServers.value, recentServers.value));
   const currentTarget = computed(() => combineTeamSpeakTarget(serverHost.value, serverPort.value));
   const isFavorite = computed(() => favoriteServers.value.some((favorite) => favorite.id === serverKey(currentTarget.value)));
+  let historyOperations = new AbortController();
+  onScopeDispose(() => historyOperations.abort());
 
   async function loadSavedServers(): Promise<void> {
+    const { signal } = historyOperations;
     const [favorites, recent] = await Promise.all([listFavorites(), listRecentServers()]);
+    if (signal.aborted) return;
     favoriteServers.value = favorites;
     recentServers.value = recent;
   }
@@ -60,7 +64,12 @@ export function useWebClientServerHistory({
       ...(savedServer?.serverIcon ? { serverIcon: savedServer.serverIcon } : {}),
       ...(channel.value.trim() ? { lastChannelHint: { name: channel.value.trim() } } : {}),
     };
-    void recordRecentServer(recent).then(() => listRecentServers().then((items) => { recentServers.value = items; }));
+    const { signal } = historyOperations;
+    void recordRecentServer(recent, signal).then(async () => {
+      if (signal.aborted) return;
+      const items = await listRecentServers();
+      if (!signal.aborted) recentServers.value = items;
+    });
   }
 
   function selectLocalServer(address: string, savedNickname?: string, savedChannel?: string): void {
@@ -76,9 +85,10 @@ export function useWebClientServerHistory({
     label = address,
     savedNickname = nickname.value.trim(),
     channelHint = channel.value.trim(),
-  ): Promise<void> {
+  ): Promise<boolean> {
     const normalizedAddress = address.trim();
-    if (!normalizedAddress) return;
+    if (!normalizedAddress) return false;
+    const { signal } = historyOperations;
     const id = serverKey(normalizedAddress);
     const existing = quickServers.value.find((server) => server.id === id);
     const favorite: FavoriteServer = {
@@ -92,13 +102,18 @@ export function useWebClientServerHistory({
       ...(channelHint ? { lastChannelHint: { name: channelHint } } : {}),
     };
     await saveFavorite(favorite);
+    if (signal.aborted) return false;
     favoriteServers.value = [...favoriteServers.value.filter((item) => item.id !== id), favorite]
       .sort((left, right) => left.label.localeCompare(right.label));
+    return true;
   }
 
-  async function removeFavoriteServer(id: string): Promise<void> {
+  async function removeFavoriteServer(id: string): Promise<boolean> {
+    const { signal } = historyOperations;
     await deleteFavorite(id);
+    if (signal.aborted) return false;
     favoriteServers.value = favoriteServers.value.filter((favorite) => favorite.id !== id);
+    return true;
   }
 
   async function toggleFavorite(): Promise<void> {
@@ -107,18 +122,15 @@ export function useWebClientServerHistory({
     const id = serverKey(address);
     const existing = favoriteServers.value.find((favorite) => favorite.id === id);
     if (existing) {
-      await removeFavoriteServer(id);
-      showToast(t("removedFavoriteToast"));
+      if (await removeFavoriteServer(id)) showToast(t("removedFavoriteToast"));
       return;
     }
-    await saveFavoriteServer(address, address);
-    showToast(t("savedFavoriteToast"));
+    if (await saveFavoriteServer(address, address)) showToast(t("savedFavoriteToast"));
   }
 
   async function toggleQuickServerFavorite(server: QuickServer): Promise<void> {
     if (server.isFavorite) {
-      await removeFavoriteServer(server.id);
-      showToast(t("removedFavoriteToast"));
+      if (await removeFavoriteServer(server.id)) showToast(t("removedFavoriteToast"));
       return;
     }
     await saveFavoriteServer(
@@ -149,7 +161,9 @@ export function useWebClientServerHistory({
     else delete recent.serverIcon;
     recentServers.value = [recent, ...recentServers.value.filter((server) => server.id !== id)]
       .sort((left, right) => right.lastConnectedAt - left.lastConnectedAt).slice(0, 10);
-    await recordRecentServer(recent);
+    const { signal } = historyOperations;
+    await recordRecentServer(recent, signal);
+    if (signal.aborted) return;
 
     const favorite = favoriteServers.value.find((server) => server.id === id);
     if (favorite) {
@@ -162,6 +176,8 @@ export function useWebClientServerHistory({
   }
 
   function clearServerHistory(): void {
+    historyOperations.abort();
+    historyOperations = new AbortController();
     favoriteServers.value = [];
     recentServers.value = [];
   }
