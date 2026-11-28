@@ -14,9 +14,11 @@
   #dock { display: flex; gap: 8px; padding: 12px; background: #eef4f2; }
   #overlay { width: 320px; height: 180px; margin: 12px; background: #fff; border: 1px solid #ccd; }
   #app { position: absolute; left: 0; top: 0; }
+  #recovery-anchor { position: fixed; left: 20px; top: 340px; width: calc(100% - 40px); height: 144px; pointer-events: none; }
 </style>
 </head>
 <body>
+<img src="/test/fixtures/host-chrome-recovery-load" hidden alt="" />
 <!-- A minimal public-skin surface so compiled hostile rules have real targets. -->
 <div class="ws-skin-root" data-ws-skin="community.hostile-fixture" data-ws-page="voice" data-ws-part="app">
   <div id="dock" data-ws-part="voice.audio-dock">
@@ -24,14 +26,22 @@
     <button type="button" data-ws-part="voice.audio-dock.output">Output</button>
   </div>
   <div id="overlay" data-ws-part="host.plugins.overlay">Application library</div>
+  <div id="recovery-anchor" data-ws-part="skin.voice.dock.part-anchor"></div>
   <button type="button" id="launcher" data-ws-part="host.plugins.launcher">Plugins</button>
 </div>
+<!-- Decorative host chrome lives outside the skin root in the real client. -->
+<div id="watermark" data-ws-part="host.watermark" aria-hidden="true">Watermark</div>
 <div id="app"></div>
 <pre id="result" style="position:relative;z-index:5;background:#fff">pending</pre>
 <script type="module">
-import { createApp, h, nextTick } from "vue";
+import { createApp, h, nextTick, ref, watch } from "vue";
 import HostChrome from "/src/components/HostChrome.vue";
-import { hostBuiltInSkinRequests, setHostChromeActiveSkin } from "/src/services/host-chrome.ts";
+import ExtensionPreferences from "/src/components/ExtensionPreferences.vue";
+import SkinLoadRecoveryNotice from "/src/components/SkinLoadRecoveryNotice.vue";
+import SkinSwitcher from "/src/components/SkinSwitcher.vue";
+import "/src/styles/appearance.css";
+import { hostBuiltInSkinRequests, setHostChromeActiveSkin, setSkinHostChromeParts } from "/src/services/host-chrome.ts";
+import { setInstanceAuthorization, thirdPartyAllowed } from "/src/services/instance-authorization.ts";
 import { hostOwnedLayers, syncRecoveryPopover } from "/src/services/host-owned-layer.ts";
 
 const output = document.getElementById("result");
@@ -41,7 +51,51 @@ style.id = "hostile-skin";
 document.head.append(style);
 
 setHostChromeActiveSkin("community.hostile-fixture");
-createApp({ render: () => h(HostChrome, { language: "en", connected: true }) }).mount("#app");
+const preferences = ref(null);
+const skinSwitcher = ref(null);
+watch(thirdPartyAllowed, allowed => {
+  if (allowed) return;
+  setSkinHostChromeParts(undefined);
+  setHostChromeActiveSkin("builtin.dark");
+}, { flush: "sync" });
+const skinLoadError = ref(null);
+let bannerResetCount = 0;
+createApp({
+  setup: () => () => [
+    h(HostChrome, {
+      language: "de",
+      connected: true,
+      pluginLibraryAvailable: true,
+      preferencesAvailable: true,
+      onPreferences: (restore) => preferences.value.open(() => {
+        if (!restore()) skinSwitcher.value.focusTrigger();
+      }),
+    }),
+    h(SkinSwitcher, {
+      ref: skinSwitcher,
+      modelValue: "builtin.dark",
+      menuLabel: "Theme",
+      preferencesLabel: "Preferences",
+      options: [{ value: "builtin.dark", label: "Night" }],
+      onPreferences: (trigger) => preferences.value.open(trigger),
+    }),
+    h(ExtensionPreferences, {
+      ref: preferences,
+      language: "de",
+      activeId: "community.hostile-fixture",
+      skins: [],
+      importSkin: async () => undefined,
+    }),
+    h(SkinLoadRecoveryNotice, {
+      language: "de",
+      error: skinLoadError.value,
+      onUseBuiltIn: () => {
+        bannerResetCount++;
+        skinLoadError.value = null;
+      },
+    }),
+  ],
+}).mount("#app");
 
 const layer = hostOwnedLayers().find((entry) => entry.name === "recovery");
 const results = [];
@@ -49,6 +103,10 @@ const results = [];
 if (!layer) {
   output.textContent = JSON.stringify({ error: "recovery layer was not created" });
 } else {
+  runRecovery().catch(error => { output.textContent = JSON.stringify({ error: String(error.stack ?? error) }); });
+}
+
+async function runRecovery() {
   const popover = layer.container.querySelector("[data-ws-host-recovery]");
   // The component promotes the popover on the next microtask; do it here so
   // the whole fixture runs synchronously and the result is ready before load.
@@ -73,7 +131,9 @@ if (!layer) {
       popoverOpen: popover.matches(":popover-open"),
       // elementFromPoint retargets nodes inside a closed shadow root to its
       // host, so either the inner button or the host proves the top layer won.
+      // Slot placement compares strictly against the host; record that too.
       topLayerHit: hit === layer.host || hit === button || layer.container.contains(hit),
+      hitIsLayerHost: hit === layer.host,
       hostileCovered: hit === dock,
       visible: computed.display !== "none" && computed.visibility !== "hidden"
         && Number(computed.opacity) > 0.01 && computed.pointerEvents !== "none",
@@ -102,6 +162,73 @@ if (!layer) {
     visible: fallbackStyle.display !== "none" && fallbackRect.width > 0 && fallbackRect.height > 0,
   };
   fallback.remove();
+  style.textContent = "";
+  const slot = {
+    schemaVersion: 1,
+    slots: { "host.recovery": { anchor: "skin.voice.dock.part-anchor", align: "start", compact: true } },
+  };
+  setSkinHostChromeParts(slot);
+  await new Promise(resolve => setTimeout(resolve, 5500));
+  const preferenceTrigger = popover.querySelector('[data-ws-recovery-action="preferences"]');
+  const actionCount = popover.querySelectorAll("button").length;
+  const compactSlotted = !popover.hasAttribute("data-ws-float")
+    && popover.tabIndex === 0
+    && getComputedStyle(preferenceTrigger).display === "none";
+  popover.focus();
+  const compactFocusExpanded = getComputedStyle(preferenceTrigger).display === "flex";
+  preferenceTrigger.focus();
+  preferenceTrigger.click();
+  const dialog = document.querySelector("dialog.appearance-dialog");
+  const preferencesModal = dialog.matches(":modal") && dialog.parentElement === document.body;
+  const closePreferences = async () => {
+    const closed = new Promise(resolve => dialog.addEventListener("close", resolve, { once: true }));
+    dialog.close();
+    await closed;
+  };
+  const compactWhileModal = getComputedStyle(preferenceTrigger).display === "none";
+  await closePreferences();
+  const preferencesFocusRestored = layer.shadow.activeElement === preferenceTrigger;
+
+  const themeTrigger = document.querySelector("#app .skin-trigger");
+  themeTrigger.focus();
+  themeTrigger.click();
+  await nextTick();
+  document.querySelector("#app .skin-preferences").click();
+  await closePreferences();
+  const themeFocusRestored = document.activeElement === themeTrigger;
+
+  popover.focus();
+  preferenceTrigger.focus();
+  preferenceTrigger.click();
+  dialog.querySelector(".appearance-section button").click();
+  await nextTick();
+  await closePreferences();
+  const revokeFocusRestored = document.activeElement === themeTrigger && !popover.matches(":popover-open");
+  const revokedInPreferences = JSON.parse(localStorage.getItem("webspeak:instance-authorization:v2")).allowed === false;
+  setInstanceAuthorization(true);
+  setHostChromeActiveSkin("community.hostile-fixture");
+
+  style.textContent = scenarios.find(scenario => scenario.name === "fullscreen-audio-dock").css;
+  document.documentElement.dataset.theme = "dark";
+  skinLoadError.value = { skinId: "community.broken-long-translation" };
+  await nextTick();
+  await nextTick();
+  const bannerLayer = hostOwnedLayers().find(entry => entry.name === "skin-load");
+  const banner = bannerLayer.container.querySelector('[role="alert"]');
+  const bannerButton = banner.querySelector("button");
+  const rect = bannerButton.getBoundingClientRect();
+  const bannerHit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  const bannerInteractive = bannerHit === bannerLayer.host && bannerLayer.host.shadowRoot === null;
+  const alertSurface = document.createElement("div");
+  alertSurface.style.backgroundColor = "var(--caution-surface)";
+  document.body.append(alertSurface);
+  const bannerNightSurface = getComputedStyle(banner).backgroundColor === getComputedStyle(alertSurface).backgroundColor;
+  alertSurface.remove();
+  bannerButton.click();
+  await nextTick();
+  const bannerDismissed = !bannerLayer.container.querySelector('[role="alert"]');
+  delete document.documentElement.dataset.theme;
+
   // Start with a built-in skin and a hidden recovery entry. A visible
   // persistent entry would allow focus even if the shortcut scheduled it early.
   style.textContent = "";
@@ -111,10 +238,12 @@ if (!layer) {
   const launcher = document.getElementById("launcher");
   launcher.focus();
   const closedBeforeShortcut = !popover.matches(":popover-open");
-  launcher.dispatchEvent(new KeyboardEvent("keydown", {
+  const shortcut = new KeyboardEvent("keydown", {
     key: "R", ctrlKey: true, altKey: true, shiftKey: true,
     bubbles: true, cancelable: true,
-  }));
+  });
+  shortcut.preventDefault();
+  launcher.dispatchEvent(shortcut);
   await nextTick();
   await nextTick();
   const keyboardRecovery = {
@@ -123,9 +252,32 @@ if (!layer) {
     focusedAction: layer.shadow.activeElement?.dataset.wsRecoveryAction,
   };
 
+  launcher.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  await nextTick();
+  await nextTick();
+  const closedByEscape = !popover.matches(":popover-open");
+  launcher.dispatchEvent(new KeyboardEvent("keydown", {
+    key: "r", ctrlKey: true, altKey: true, shiftKey: true, bubbles: true, cancelable: true,
+  }));
+  await nextTick();
+  await nextTick();
+
   layer.container.querySelector('[data-ws-recovery-action="disable"]').click();
+  await nextTick();
+  await nextTick();
   const consent = JSON.parse(localStorage.getItem("webspeak:instance-authorization:v2"));
-  output.textContent = JSON.stringify({ results, authorizationDisabled: consent.allowed === false, popoverFallback, keyboardRecovery });
+  output.textContent = JSON.stringify({
+    results,
+    preferences: {
+      actionCount, compactSlotted, compactFocusExpanded, preferencesModal, compactWhileModal, preferencesFocusRestored,
+      themeFocusRestored, revokeFocusRestored, revokedInPreferences,
+    },
+    failureBanner: { bannerInteractive, bannerNightSurface, buttonHeight: rect.height, bannerResetCount, bannerDismissed },
+    authorizationDisabled: consent.schemaVersion === 2 && consent.allowed === false,
+    closedAfterRevocation: !popover.matches(":popover-open"),
+    popoverFallback,
+    keyboardRecovery: { ...keyboardRecovery, closedByEscape },
+  });
 }
 </script>
 </body>

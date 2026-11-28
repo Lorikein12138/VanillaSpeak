@@ -1,5 +1,6 @@
 import { Router, raw as expressRaw, type NextFunction, type Request, type Response } from "express";
 import { existsSync, readFileSync } from "node:fs";
+import type { AdminUpdateStatus } from "../shared/admin-responses.js";
 import type { Logger } from "../logger.js";
 import { AdminInputError, AdminService, type AdminSettingsInput, type RelayNodeInput, type TsAdminSettingsInput } from "./admin-service.js";
 import { AdminSessionStore, isSecureRequest } from "./admin-session.js";
@@ -338,6 +339,30 @@ export function createAdminRouter(options: AdminRouterOptions): Router {
       entries: readRecentLogs(options.logFile, limit),
       sessions: readConnectionHistory(options.logFile, limit),
     });
+  });
+
+  router.get("/update", (_request, response) => {
+    const docker = process.env.WEBSPEAK_DEPLOYMENT_MODE?.trim().toLowerCase() === "docker"
+      || existsSync("/.dockerenv");
+    const status: AdminUpdateStatus = {
+      currentVersion: options.version ?? "0.1.0",
+      deployment: {
+        mode: docker ? "docker" : "source",
+        platform: process.platform,
+        architecture: process.arch,
+        applyAllowed: false,
+        reasonCode: "UPDATE_UNAVAILABLE",
+        upgradePath: docker ? "docker-compose" : "source",
+      },
+      task: null,
+    };
+    response.json(status);
+  });
+
+  // VanillaSpeak updates are performed through its deployment workflow.
+  // These compatibility routes never contact a release source or write tasks.
+  router.post(["/update/check", "/update/apply"], requireSameOrigin, requireCsrf(options.sessions), (_request, response) => {
+    response.status(503).json({ ok: false, code: "UPDATE_UNAVAILABLE" });
   });
 
   router.get("/diagnostics", (_request, response) => {

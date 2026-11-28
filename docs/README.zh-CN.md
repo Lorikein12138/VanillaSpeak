@@ -14,7 +14,7 @@
 
 WebSpeak 是可自行部署的 TeamSpeak 3 / TeamSpeak 6 网页客户端与语音网关。用户通过浏览器加入语音、聊天和屏幕共享；部署者通过管理员控制台管理目标服务器、访问策略和数据。
 
-稳定版：[v0.3.2 更新日志](#latest-release-notes) · [上游 WebSpeak v0.3.2 发布包](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) · 皮肤恢复入口、应用库布局和插件配置表单。
+VanillaSpeak 基于 [WebSpeak v0.3.3 上游版本](#latest-release-notes)。本版同步皮肤恢复入口停靠、控件避让和受控样式。
 
 
 
@@ -40,9 +40,9 @@ WebSpeak 是可自行部署的 TeamSpeak 3 / TeamSpeak 6 网页客户端与语�
 | 屏幕与音频共享 | 浏览器之间及与受支持的 TeamSpeak 6 原生客户端共享屏幕；提供采集质量、码率和统计面板，桌面端还可分享窗口或标签页音频。 |
 | 身份与连接 | 身份保持、TS3 身份导入/导出、收藏和历史连接、SRV 与 Nickname 地址解析、IPv4/IPv6 及邀请链接。 |
 | 实例管理 | 固定或公开目标、访问策略、邀请、会话、日志、诊断、备份及可选的 TeamSpeak 管理连接。 |
-| 皮肤与界面 | 日间、夜间和 KAAK；可通过 GitHub 皮肤商店管理 `.wskin` 包，支持五种语言和响应式布局。 |
+| 皮肤与界面 | 内置日间和夜间外观，可在扩展偏好中启用第三方皮肤；支持五种语言和响应式布局。 |
 | 分布式语音 | 配置中继后，浏览器直接连接所选中继的语音网关，网页地址仍保留在入口实例。 |
-| 部署方式 | Docker amd64/arm64、Windows x64 与 Linux x64/ARM64 发布包；另有 Android 预览 APK。 |
+| 部署方式 | 从 VanillaSpeak 源码运行或通过 Docker Compose 构建，Android 应用可从源码打包。 |
 
 ### TeamSpeak 版本兼容性
 
@@ -118,20 +118,18 @@ docker compose ps
 docker compose logs -f webspeak
 ```
 
-升级：
+升级在宿主机执行。管理控制台在 Docker 部署中只能检查新版本，不能从容器内部替换镜像：
 
 ```bash
 git pull --ff-only
 docker compose up -d --build
 ```
 
-不要执行 `docker compose down -v`，否则会删除数据库和管理员设置。
+不要执行 `docker compose down -v`，否则会删除 `webspeak-data` volume，包括数据库和管理员设置。
 
-### 发布包
+### 上游发布参考
 
-从 [上游 WebSpeak v0.3.2 发布包](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) 下载与系统和架构匹配的 `windows-x64.zip`、`linux-x64.tar.gz` 或 `linux-arm64.tar.gz`，解压后运行对应启动脚本。发布包自带 Node.js 运行时和生产依赖。Docker 镜像支持 amd64/arm64。
-
-Release 同时提供 Android `arm64-v8a`、`armeabi-v7a` 和 `x86_64` APK。它们使用 debug 签名，可手动侧载测试；不是 Google Play 发布包，Android 真机语音仍需验收。
+[WebSpeak v0.3.3 发布页](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.3) 记录上游服务器包和 Android 测试 APK。VanillaSpeak 使用本页的 Compose 或源码步骤部署和更新，管理控制台只显示当前版本和部署方式。Android 源码构建见 [移动客户端说明](../mobile/README.md)。
 
 ### 源码运行
 
@@ -147,6 +145,8 @@ npm start
 ```
 
 构建 `@discordjs/opus` 需要 Python、Make 和 C/C++ 编译工具。
+
+源码运行时，管理控制台可以检查新的正式版本，但目录中没有捆绑的 Node.js 运行时，因此不能一键应用更新。请查看发行说明后拉取源码并重新构建；控制台不会下载或替换源码目录中的文件。
 
 ### 首次配置
 
@@ -259,21 +259,6 @@ $env:WEBSPEAK_RELAY_PORT = "39087"
 node .\dist\index.js
 ```
 
-#### 发布包启动
-
-从 [上游 WebSpeak v0.3.2 发布包](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) 下载并解压对应平台的包：
-
-```bash
-# Linux
-export WEBSPEAK_MODE=relay
-export WEBSPEAK_RELAY_TOKEN='replace-with-a-long-random-token'
-export WEBSPEAK_RELAY_HOST='0.0.0.0'
-export WEBSPEAK_RELAY_PORT='39087'
-./runtime/node ./dist/index.js
-```
-
-Windows PowerShell 使用同名环境变量后运行 `.\runtime\node.exe .\dist\index.js`。
-
 #### Docker 启动
 
 ```bash
@@ -364,7 +349,23 @@ relay.example.com {
 
 <a id="latest-release-notes"></a>
 
+### [v0.3.3](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.3) · 2026-11-26
+
+**本次重点：管理员控制台新增正式版本检查与一键更新。**
+
+- 管理员可检查官方 GitHub Releases，选择版本并确认安装；下载包必须通过 SHA-256 校验。首期自动安装支持前台运行的 Linux x64 官方发布包。Windows、Linux arm64、Docker、源码，以及 systemd、PM2、Supervisor 托管实例均保留版本检查和发行说明入口，安装仍按各部署方式手动完成。
+- 更新仅替换程序文件，保留 `data/`、`config.json`、`certs/` 及已安装的皮肤和插件。安装会重启进程，语音会话和管理页面会短暂断开。SHA256SUMS.txt 是完整性校验和，不是数字签名。
+- 加固升级健康检查、失败回滚和断电/进程中断后的启动恢复；恢复流程与更新进程共享锁，防止正常更新被重复启动误回滚。下载超限、写盘失败或取消时会中止请求、释放响应流，并清理并行下载。
+- 皮肤可通过声明的布局槽位和受保护样式变量调整恢复入口与宿主控件的外观；不可读或不可用时回退到默认布局和样式。改进浮动入口的遮挡避让、提示消息穿透判断、皮肤延迟加载和动画兼容性，保留恢复快捷键。
+- 纳入 #60、#61、#62 及后续维护修复，更新皮肤开发文档和示例。感谢 OddTurtleHead 的贡献。
+
+**升级说明：** v0.3.2 及更早版本请先手动升级到 v0.3.3；之后可在支持的部署中使用控制台安装后续正式版。升级前请备份数据。Docker 使用 `docker compose pull && docker compose up -d` 并保留数据卷；服务托管实例请停止服务、替换程序文件后再启动。
+
+验证：1102 项自动化测试通过，前后端构建及 Docker 启动健康检查通过。
+
 ### [v0.3.2](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) · 2026-11-14
+
+<a id="live-update-2026-11-13"></a>
 
 - 第三方皮肤可以为宿主装饰添加样式。恢复入口和授权弹窗由宿主管理，应用皮肤后仍能切回内置皮肤。感谢 ph1gros 对 TS3 版本识别及兼容性文档的贡献（#46），以及 OddTurtleHead 对宿主装饰和皮肤恢复的贡献（#57）。
 - 日间、夜间和 ILLUSIA 的应用库在顶部工具栏展开。KAAK 3.1.134 将应用库放入最左侧图标栏，按钮与相邻控件对齐。固定应用排在列表前面。

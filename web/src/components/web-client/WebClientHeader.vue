@@ -3,6 +3,7 @@
     <ProductBrand :size="36" :home-label="appearanceCopy(language).home" />
     <nav class="product-navigation">
       <SkinSwitcher
+        ref="skinSwitcher"
         :model-value="skinId"
         :menu-label="appearanceCopy(language).theme"
         :preferences-label="appearanceCopy(language).preferences"
@@ -17,6 +18,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import { appearanceCopy } from "../../i18n/appearance.js";
 import ProductBrand from "../ProductBrand.vue";
 import SkinSwitcher, { type SkinOption } from "../SkinSwitcher.vue";
@@ -28,6 +30,8 @@ defineProps<{
   skinOptions: SkinOption[];
   t: (key: string, variables?: Record<string, string | number>) => string;
 }>();
+const skinSwitcher = ref<InstanceType<typeof SkinSwitcher> | null>(null);
+defineExpose({ focusSkinSwitcher: () => skinSwitcher.value?.focusTrigger() });
 const language = defineModel<Language>("language", { required: true });
 const emit = defineEmits<{ skinChange: [value: string]; languageChange: []; preferences: [trigger: HTMLElement | null] }>();
 </script>

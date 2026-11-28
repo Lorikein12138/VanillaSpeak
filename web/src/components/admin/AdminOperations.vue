@@ -249,8 +249,11 @@
         ><dl class="diagnostic-list"
           ><div
             ><dt>{{ tr("version") }}</dt
-            ><dd>{{ operations.diagnostics.version || "—" }}</dd></div
-          ><div
+            ><dd>{{ updateStatus?.currentVersion || operations.diagnostics.version || "—" }}</dd></div
+          ><div v-if="updateStatus">
+            <dt>{{ tr("adminDeployment") }}</dt>
+            <dd>{{ tr(updateStatus.deployment.mode === "docker" ? "adminDeploymentDocker" : "adminDeploymentSource") }}</dd>
+          </div><div
             ><dt>{{ tr("runtime") }}</dt
             ><dd>{{ operations.diagnostics.node || "—" }}</dd></div
           ><div
@@ -273,7 +276,7 @@
           >{{ tr("exportBackup") }}</button
         ></article
       >
-      <div class="alert info system-notice"><Icon name="info" :size="16"/><span>{{ tr('updateNotice', {version: operations.diagnostics.version || '—'}) }}</span></div>
+      <div class="alert info system-notice"><Icon name="info" :size="16"/><span>{{ tr('adminUpdateUnavailable') }}</span></div>
     </div>
   </section>
 </template>
@@ -291,7 +294,7 @@ const props = defineProps<{
   i18n: Pick<ReturnType<typeof useAdminI18n>, "tr" | "formatDate" | "formatAge" | "sessionStateLabel" | "connectionStatusLabel" | "inviteStatusLabel" | "eventName" | "connectionFailureText">;
 }>();
 // Request ownership, cancellation and drafts remain in the page's controller.
-const { operations, operationsLoading, terminatingSession, inviteSubmitting, revokingInvites, inviteForm, createdInvite,
+const { operations, operationsLoading, updateStatus, terminatingSession, inviteSubmitting, revokingInvites, inviteForm, createdInvite,
   loadOperations, terminateSession, createInvite, revokeInvite, copyInviteLink, downloadBackup } = props.model;
 const { tr, formatDate, formatAge, sessionStateLabel, connectionStatusLabel, inviteStatusLabel, eventName, connectionFailureText } = props.i18n;
 type OperationsSection = 'sessions' | 'invites' | 'logs' | 'audit' | 'maintenance';

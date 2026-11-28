@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isBundledSkin } from "./host-chrome.js";
+import { parseSkinChromeDocument } from "../../../src/shared/skin-chrome.js";
+import {
+  activeHostSlot,
+  isBundledSkin,
+  setHostChromeActiveSkin,
+  setSkinHostChromeParts,
+} from "./host-chrome.js";
 import { isHostPartReachable, shouldShowRecovery, type HostPartVisibilitySnapshot } from "./host-chrome-visibility.js";
 
 const snapshot = (overrides: Partial<HostPartVisibilitySnapshot> = {}): HostPartVisibilitySnapshot => ({
@@ -76,4 +82,36 @@ test("the recovery entry is persistent for third-party skins only", () => {
   // Never show a recovery entry without authorization.
   assert.equal(shouldShowRecovery({ ...base, thirdPartyAllowed: false, thirdPartySkinActive: true }), false);
   assert.equal(shouldShowRecovery({ ...base, thirdPartyAllowed: false, launcherHiddenByConfig: true }), false);
+});
+
+test("slot declarations are honoured for third-party skins only", () => {
+  const document = parseSkinChromeDocument(JSON.stringify({
+    schemaVersion: 1,
+    slots: { "host.recovery": { anchor: "voice.audio-dock" } },
+  }));
+  setSkinHostChromeParts(document);
+  setHostChromeActiveSkin("community.demo");
+  try {
+    assert.deepEqual(activeHostSlot("host.recovery"), {
+      anchor: "voice.audio-dock",
+      align: "end",
+      compact: false,
+    });
+    // A part that is not slottable cannot be selected through chrome.json.
+    assert.equal(activeHostSlot("host.permission"), undefined);
+
+    // VanillaSpeak bundles only Day and Night.
+    for (const id of [undefined, "builtin.light", "builtin.dark"]) {
+      setHostChromeActiveSkin(id);
+      assert.equal(activeHostSlot("host.recovery"), undefined, String(id));
+    }
+    for (const id of ["community.illusia-voice", "community.kaak-voice"]) {
+      setHostChromeActiveSkin(id);
+      assert.equal(activeHostSlot("host.recovery")?.anchor, "voice.audio-dock", id);
+    }
+  } finally {
+    // Module-global state: never leak it into sibling tests.
+    setSkinHostChromeParts(undefined);
+    setHostChromeActiveSkin(undefined);
+  }
 });

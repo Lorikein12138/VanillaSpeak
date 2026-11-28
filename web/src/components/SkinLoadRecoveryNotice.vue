@@ -1,6 +1,6 @@
 <template>
-  <Teleport to="body">
-    <section v-if="error" class="skin-load-recovery" data-ws-part="app.skin-load-recovery" role="alert">
+  <Teleport v-if="layer" :to="layer.container">
+    <section v-if="error" ref="banner" class="skin-load-recovery" data-ws-part="app.skin-load-recovery" role="alert">
       <p>{{ labels.skinLoadError(error.skinId) }}</p>
       <button type="button" @click="$emit('use-built-in')">{{ labels.skinUseBuiltIn }}</button>
     </section>
@@ -8,9 +8,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import type { Language } from "../i18n/web-client.js";
 import { resolveSkinLayoutLanguage, skinLayoutLabels } from "../i18n/skin-layout.js";
+import { createHostOwnedLayer, type HostOwnedLayer } from "../services/host-owned-layer.js";
+import { hostChromeActiveSkinId, isThirdPartySkinActive } from "../services/host-chrome.js";
+import { thirdPartyAllowed } from "../services/instance-authorization.js";
+import {
+  SKIN_LOAD_RECOVERY_CONTROL_DEFAULTS,
+  bindHostControlTheme,
+  findSkinRoot,
+} from "../services/host-control-tokens.js";
 
 defineEmits<{ "use-built-in": [] }>();
 
@@ -19,9 +27,11 @@ const props = defineProps<{
   language: Language;
 }>();
 const labels = computed(() => skinLayoutLabels[resolveSkinLayoutLanguage(props.language)]);
-</script>
 
-<style scoped>
+// The banner is trusted host UI: render it in a closed shadow root so compiled
+// skin CSS cannot restyle it (or hide it) from the document. The layer's fixed
+// wrapper is pointer-transparent, so the banner re-enables pointer events.
+const SKIN_LOAD_LAYER_CSS = `
 .skin-load-recovery {
   position: fixed;
   z-index: 2147482500;
@@ -32,21 +42,52 @@ const labels = computed(() => skinLayoutLabels[resolveSkinLayoutLanguage(props.l
   justify-content: center;
   gap: 12px;
   width: min(720px, calc(100vw - 24px));
+  box-sizing: border-box;
   padding: 10px 12px;
   transform: translateX(-50%);
-  border: 1px solid var(--caution);
-  border-radius: 12px;
-  color: var(--caution);
-  background: var(--caution-surface);
-  box-shadow: var(--popover-shadow);
-  font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+  border: 1px solid var(--ws-control-border, var(--caution, #f59e0b));
+  border-radius: var(--ws-control-radius, 12px);
+  color: var(--ws-control-foreground, var(--caution, #78350f));
+  background: var(--ws-control-background, var(--caution-surface, #fffbeb));
+  box-shadow: var(--popover-shadow, 0 8px 28px #0f172a33);
+  font-family: var(--ws-control-font, ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--ws-control-font-size, 14px);
+  line-height: 1.45;
+  pointer-events: auto;
 }
 .skin-load-recovery p { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.skin-load-recovery button { flex: 0 0 auto; min-height: 44px; max-width: 100%; padding: 7px 10px; border: 1px solid var(--caution); border-radius: 8px; color: var(--caution); background: var(--surface); cursor: pointer; white-space: normal; }
-.skin-load-recovery button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-
+.skin-load-recovery button { flex: 0 0 auto; min-height: max(44px, var(--ws-control-hit, 44px)); max-width: 100%; padding: 7px 10px; border: 1px solid var(--ws-control-accent, var(--caution, #b45309)); border-radius: var(--ws-control-radius, 8px); color: var(--ws-control-foreground, var(--caution, #78350f)); background: var(--ws-control-background, var(--surface, #fff)); font: inherit; cursor: pointer; white-space: normal; }
+.skin-load-recovery button:focus-visible { outline: 3px solid var(--ws-control-accent, var(--focus, #1d4ed8)); outline-offset: 2px; }
+@media (forced-colors: active) { .skin-load-recovery button:focus-visible { outline-color: Highlight; } }
 @media (max-width: 520px) {
   .skin-load-recovery { align-items: stretch; flex-direction: column; gap: 7px; }
   .skin-load-recovery button { width: 100%; }
 }
-</style>
+`;
+
+const layer: HostOwnedLayer | null = createHostOwnedLayer("skin-load", SKIN_LOAD_LAYER_CSS);
+const banner = ref<HTMLElement | null>(null);
+
+/**
+ * Tokens come from the active skin root, never from the document. The banner
+ * appears when a skin failed to load, so a missing root simply keeps the
+ * VanillaSpeak day or night surface; an unreadable palette reverts the same way.
+ */
+const theme = layer ? bindHostControlTheme({
+  layer,
+  control: () => banner.value,
+  part: "app.skin-load-recovery",
+  defaults: SKIN_LOAD_RECOVERY_CONTROL_DEFAULTS,
+  source: () => thirdPartyAllowed.value && isThirdPartySkinActive()
+    ? findSkinRoot(hostChromeActiveSkinId.value) : null,
+}) : null;
+
+watch([() => props.error, banner, hostChromeActiveSkinId, thirdPartyAllowed], () => {
+  void nextTick(() => theme?.apply());
+}, { flush: "post", immediate: true });
+
+onBeforeUnmount(() => {
+  theme?.dispose();
+  layer?.dispose();
+});
+</script>

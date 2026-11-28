@@ -1,5 +1,6 @@
 <template>
   <WebClientHeader
+    ref="homeHeader"
     v-if="!showVoiceShell"
     :inert="clearingLocalData"
     v-model:language="language"
@@ -462,6 +463,7 @@
             /></button>
             <SkinSwitcher
               :model-value="headerSkinId"
+              ref="workspaceSkinSwitcher"
               class="workspace-skin-switcher"
               :menu-label="t('skinSelector')"
               :preferences-label="appearanceCopy(language).preferences"
@@ -754,6 +756,7 @@
         >
         <SkinSwitcher
           :model-value="headerSkinId"
+          ref="mobileSkinSwitcher"
           class="mobile-skin-switcher"
           :menu-label="t('skinSelector')"
           :preferences-label="appearanceCopy(language).preferences"
@@ -835,7 +838,7 @@
 
     <PluginPanel :session-token="pluginSession" :gateway-url="pluginVoiceSocket?.url ?? ''" :connected="voiceState.connected" :language="language" :toolbar-target="skinPluginToolbar?.element ?? pluginToolbarTarget" :presentation="skinPluginToolbar?.presentation ?? (OFFICIAL_SKIN_IDS.has(activeSkinId) ? 'drawer-below' : 'dialog')" />
     <HostChrome :language="language" :connected="voiceState.connected" :plugin-library-available="voiceState.connected && Boolean(pluginSession)"
-      :preferences-available="showVoiceShell && Boolean(activeSkin)" @preferences="openExtensionPreferences" />
+      :preferences-available="showVoiceShell && Boolean(activeSkin)" @preferences="openRecoveryPreferences" />
     <IdentityImportDialog
       v-if="identityImportOpen"
       v-model="identityImportText"
@@ -1193,8 +1196,28 @@ const fixedServerName = computed(() => {
 const clubLobby = computed(() => accessMode.value === "fixed" && fixedServerName.value === "VanillaClub");
 const homeWelcomeText = computed(() => clubLobby.value ? customWelcomeText.value || t("clubDescription") : localizedWelcomeText.value);
 const extensionPreferences = ref<InstanceType<typeof ExtensionPreferences> | null>(null);
+const homeHeader = ref<InstanceType<typeof WebClientHeader> | null>(null);
+const workspaceSkinSwitcher = ref<InstanceType<typeof SkinSwitcher> | null>(null);
+const mobileSkinSwitcher = ref<InstanceType<typeof SkinSwitcher> | null>(null);
 function openExtensionPreferences(trigger: HTMLElement | null) {
   extensionPreferences.value?.open(trigger);
+}
+function openRecoveryPreferences(restoreFocus: () => boolean) {
+  extensionPreferences.value?.open(() => {
+    if (!restoreFocus()) void focusActiveSkinSwitcher();
+  });
+}
+async function focusActiveSkinSwitcher() {
+  await nextTick();
+  if (!showVoiceShell.value) {
+    homeHeader.value?.focusSkinSwitcher();
+  } else if (isMobileViewport.value) {
+    selectMobileSection("more");
+    await nextTick();
+    mobileSkinSwitcher.value?.focusTrigger();
+  } else {
+    workspaceSkinSwitcher.value?.focusTrigger();
+  }
 }
 const publicSkin = usePublicSkin({ activeSkin, appVersion: () => appVersion.value });
 const { activeSkinId, skinReady, skinLoadError, installedSkins, catalogSkins,

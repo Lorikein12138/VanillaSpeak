@@ -14,7 +14,7 @@ Diese Seite enthält die ursprünglichen WebSpeak-Versionshinweise. Quellcode un
 
 WebSpeak ist ein selbst gehosteter Browserclient und ein Sprach-Gateway für TeamSpeak 3 und TeamSpeak 6. Nutzer verwenden Sprache, Chat und Bildschirmfreigabe im Browser; Betreiber verwalten Zielserver, Zugriff und Daten über die Webkonsole.
 
-Stabile Version: [Hinweise zu v0.3.2](#latest-release-notes) · [Pakete von WebSpeak v0.3.2 (Upstream)](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) · Skin-Wiederherstellung, App-Bibliothek und Plugin-Formulare.
+VanillaSpeak basiert auf [WebSpeak v0.3.3 (Upstream)](#latest-release-notes) und übernimmt Skin-Slots, Kollisionsvermeidung und geschützte Stilvariablen.
 
 
 
@@ -40,9 +40,9 @@ Willkommensseite und Sprachbereich direkt ausprobieren. Netzwerk, Auslastung und
 | Bildschirm & Audio | Bildschirmfreigabe zwischen Browsern und unterstützten nativen TeamSpeak-6-Clients mit Qualitäts-, Bitraten- und Statistikoptionen; Fenster-/Tab-Audio auf dem Desktop. |
 | Identität & Verbindungen | Gespeicherte Identitäten, TS3-Identitätsimport/-export, Favoriten und Verlauf, SRV-/Nickname-Auflösung, IPv4/IPv6 und Einladungen. |
 | Instanzverwaltung | Feste oder offene Ziele, Zugriffsregeln, Einladungen, Sitzungen, Logs, Diagnosen, Backups und optionale TeamSpeak-Verwaltung. |
-| Skins & Oberfläche | Tag, Nacht und KAAK, `.wskin`-Pakete über GitHub, fünf Sprachen und responsive Ansichten. |
+| Skins & Oberfläche | Integrierte Tag- und Nacht-Skins, optionale Drittanbieter-Skins über die Erweiterungseinstellungen, fünf Sprachen und responsive Ansichten. |
 | Verteilte Sprache | Der Browser verbindet sich direkt mit dem gewählten Relay-Sprach-Gateway; die URL der Eingangsinstanz bleibt erhalten. |
-| Bereitstellung | Docker amd64/arm64, Serverpakete für Windows x64 und Linux x64/ARM64 sowie Android-Vorschau-APKs. |
+| Bereitstellung | VanillaSpeak aus dem Quellcode oder mit Docker Compose bauen. Auch die Android-App lässt sich aus dem Quellcode bauen. |
 
 ### TeamSpeak-Versionskompatibilität
 
@@ -112,11 +112,9 @@ docker compose up -d --build
 
 `docker compose down -v` nicht ausführen, da dadurch Datenbank und Administratoreinstellungen gelöscht werden.
 
-### Release-Paket
+### Upstream-Release
 
-Das passende `windows-x64.zip`, `linux-x64.tar.gz` oder `linux-arm64.tar.gz` aus den [Pakete von WebSpeak v0.3.2 (Upstream)](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) herunterladen und den enthaltenen Starter ausführen. Die Pakete enthalten Node.js und Produktionsabhängigkeiten. Docker unterstützt amd64/arm64.
-
-Android-APKs für `arm64-v8a`, `armeabi-v7a` und `x86_64` sind ebenfalls verfügbar. Sie sind für Tests per Sideload debug-signiert, keine Google-Play-Pakete; echte TeamSpeak-Sprachtests auf Geräten stehen noch aus.
+Der [WebSpeak-Release v0.3.3](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.3) listet die Serverpakete und Android-Test-APKs des Upstream-Projekts. VanillaSpeak wird nach der Compose- oder Quellcode-Anleitung auf dieser Seite bereitgestellt und aktualisiert. Die Verwaltung zeigt die laufende Version und die Art der Bereitstellung. Siehe die [Android-Build-Anleitung](../mobile/README.md).
 
 ### Aus dem Quellcode
 
@@ -242,21 +240,6 @@ $env:WEBSPEAK_RELAY_PORT = "39087"
 node .\dist\index.js
 ```
 
-#### Aus einem Release-Paket starten
-
-Das passende Paket aus den [Pakete von WebSpeak v0.3.2 (Upstream)](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) herunterladen und entpacken:
-
-```bash
-# Linux
-export WEBSPEAK_MODE=relay
-export WEBSPEAK_RELAY_TOKEN='replace-with-a-long-random-token'
-export WEBSPEAK_RELAY_HOST='0.0.0.0'
-export WEBSPEAK_RELAY_PORT='39087'
-./runtime/node ./dist/index.js
-```
-
-Unter Windows PowerShell dieselben Variablen setzen und `.\runtime\node.exe .\dist\index.js` ausführen.
-
 #### Mit Docker starten
 
 ```bash
@@ -342,6 +325,20 @@ Funktionale Plugins sind unabhängige Anwendungen mit Browserfunktionen und opti
 Die folgenden Versionshinweise beschreiben die ursprünglichen WebSpeak-Versionen.
 
 <a id="latest-release-notes"></a>
+
+### [v0.3.3](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.3) · 2026-11-26
+
+**Schwerpunkt: stabile Versionen prüfen und Updates direkt in der Verwaltung installieren.**
+
+- Die Konsole prüft offizielle GitHub Releases; Administratoren wählen eine Version und bestätigen die Installation nach SHA-256-Prüfung. Die Installation unterstützt zunächst offizielle Linux-x64-Pakete im Vordergrund. Windows, Linux arm64, Docker, Quellinstallationen und von systemd, PM2 oder Supervisor verwaltete Instanzen können Versionen und Versionshinweise prüfen; die Installation bleibt manuell.
+- Nur Programmdateien werden ersetzt. `data/`, `config.json`, `certs/`, installierte Skins und Plugins bleiben erhalten. Der Prozessneustart trennt Sprachsitzungen und Konsole kurzzeitig. SHA256SUMS.txt ist eine Integritätsprüfsumme, keine digitale Signatur.
+- Gesundheitsprüfung, Rollback und Startwiederherstellung nach Unterbrechungen wurden gehärtet. Wiederherstellung und Update verwenden dieselbe Sperre. Größenlimits, Schreibfehler und Abbruch beenden Anfragen, geben Leser frei und bereinigen parallele Downloads.
+- Skins können Wiederherstellungsbedienelemente über deklarierte Slots platzieren und Host-Bedienelemente über geschützte Variablen gestalten. Bei unbrauchbaren Werten greifen Standardlayout und -farben. Verbesserte Vermeidung verdeckter Elemente, Toast-Hit-Tests sowie Kompatibilität mit verzögertem Skin-Laden und Animationen; Wiederherstellungskürzel bleiben verfügbar.
+- Enthält #60, #61, #62 und nachfolgende Korrekturen sowie aktualisierte Skin-Anleitungen und Beispiele. Danke an OddTurtleHead.
+
+**Upgrade:** v0.3.2 und ältere Versionen zuerst manuell auf v0.3.3 aktualisieren. Danach sind Konsolen-Updates für künftige stabile Versionen auf unterstützten Installationen verfügbar. Daten vorher sichern. Docker: `docker compose pull && docker compose up -d` unter Beibehaltung des Datenvolumes. Verwaltete Dienste vor dem Dateiaustausch stoppen und anschließend neu starten.
+
+Prüfung: 1102 automatisierte Tests, Frontend-/Backend-Builds und Docker-Startprüfung bestanden.
 
 ### [v0.3.2](https://github.com/EchoSixHIYA/WebSpeak-client-for-TeamSpeak/releases/tag/v0.3.2) · 2026-11-14
 

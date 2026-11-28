@@ -1,4 +1,6 @@
 const zh = {
+  adminDeployment: "部署方式", adminDeploymentDocker: "Docker Compose", adminDeploymentSource: "源码部署",
+  adminUpdateUnavailable: "请通过 VanillaSpeak 源码或部署镜像更新此实例。",
   adminWsGroup: "VanillaSpeak 实例", adminTsGroup: "TeamSpeak 服务", adminOptional: "可选",
   adminInstanceSettings: "接入与站点", adminInstanceLead: "配置此 VanillaSpeak 实例的语音接入、站点展示和网络传输。",
   adminInstanceOperations: "会话与运维", adminInstanceOperationsLead: "管理浏览器会话、访问邀请、连接日志和实例备份。",
@@ -21,6 +23,8 @@ const zh = {
 } as const;
 type Keys = keyof typeof zh;
 const en = {
+  adminDeployment: "Deployment", adminDeploymentDocker: "Docker Compose", adminDeploymentSource: "Source checkout",
+  adminUpdateUnavailable: "Update this instance from VanillaSpeak source or its deployment image.",
   adminWsGroup: "VanillaSpeak instance", adminTsGroup: "TeamSpeak service", adminOptional: "Optional",
   adminInstanceSettings: "Access & site", adminInstanceLead: "Configure voice access, site presentation and network transport for this VanillaSpeak instance.",
   adminInstanceOperations: "Sessions & maintenance", adminInstanceOperationsLead: "Manage browser sessions, access invites, connection logs and instance backups.",
@@ -42,6 +46,8 @@ const en = {
   adminTsNotEnabled: "Not enabled", adminTsConfigured: "Enabled · read on demand", adminTsConfigurationSaved: "Status requests use the saved connection. Opening this page does not automatically connect to TS.",
 } satisfies Record<Keys, string>;
 const de = {
+  adminDeployment: "Bereitstellung", adminDeploymentDocker: "Docker Compose", adminDeploymentSource: "Quellcode",
+  adminUpdateUnavailable: "Aktualisiere diese Instanz aus dem VanillaSpeak-Quellcode oder mit dem bereitgestellten Image.",
   adminWsGroup: "VanillaSpeak-Instanz", adminTsGroup: "TeamSpeak-Dienst", adminOptional: "Optional",
   adminInstanceSettings: "Zugang & Website", adminInstanceLead: "Sprachzugang, Website-Darstellung und Netzwerktransport dieser VanillaSpeak-Instanz konfigurieren.",
   adminInstanceOperations: "Sitzungen & Wartung", adminInstanceOperationsLead: "Browsersitzungen, Einladungen, Verbindungsprotokolle und Instanzsicherungen verwalten.",
@@ -63,6 +69,8 @@ const de = {
   adminTsNotEnabled: "Nicht aktiviert", adminTsConfigured: "Aktiviert · Abruf bei Bedarf", adminTsConfigurationSaved: "Statusabfragen verwenden die gespeicherte Verbindung. Diese Seite verbindet nicht automatisch mit TS.",
 } satisfies Record<Keys, string>;
 const ru = {
+  adminDeployment: "Развёртывание", adminDeploymentDocker: "Docker Compose", adminDeploymentSource: "Из исходного кода",
+  adminUpdateUnavailable: "Обновляйте экземпляр из исходного кода VanillaSpeak или с помощью образа развёртывания.",
   adminWsGroup: "Экземпляр VanillaSpeak", adminTsGroup: "Служба TeamSpeak", adminOptional: "Необязательно",
   adminInstanceSettings: "Доступ и сайт", adminInstanceLead: "Настройте голосовой доступ, оформление сайта и сетевой транспорт этого экземпляра VanillaSpeak.",
   adminInstanceOperations: "Сеансы и обслуживание", adminInstanceOperationsLead: "Управляйте сеансами браузеров, приглашениями, журналами подключений и резервными копиями.",
@@ -84,6 +92,8 @@ const ru = {
   adminTsNotEnabled: "Не включено", adminTsConfigured: "Включено · чтение по запросу", adminTsConfigurationSaved: "Статус запрашивается с сохранёнными настройками. Открытие страницы не подключается к TS автоматически.",
 } satisfies Record<Keys, string>;
 const ja = {
+  adminDeployment: "デプロイ方式", adminDeploymentDocker: "Docker Compose", adminDeploymentSource: "ソースコード",
+  adminUpdateUnavailable: "VanillaSpeak のソースコードまたはデプロイイメージから更新してください。",
   adminWsGroup: "VanillaSpeak インスタンス", adminTsGroup: "TeamSpeak サービス", adminOptional: "任意",
   adminInstanceSettings: "接続とサイト", adminInstanceLead: "この VanillaSpeak の音声接続、サイト表示、ネットワーク転送を設定します。",
   adminInstanceOperations: "セッションと保守", adminInstanceOperationsLead: "ブラウザーの接続、招待、接続ログ、バックアップを管理します。",
